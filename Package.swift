@@ -16,8 +16,8 @@ let package = Package(
             path: "Sources/libnativeapi",
             exclude: [
                 "examples",
-                "src/screen_retriever_linux.cpp",
-                "src/screen_retriever_windows.cpp",
+                "src/display_manager_linux.cpp",
+                "src/display_manager_windows.cpp",
             ],
             linkerSettings: [
                 .linkedFramework("Cocoa"),

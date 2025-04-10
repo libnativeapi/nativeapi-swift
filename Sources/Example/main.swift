@@ -1,13 +1,13 @@
 import nativeapi
 
-var screenRetriever = nativeapi.ScreenRetriever()
-let cursorPoint = screenRetriever.GetCursorScreenPoint()
-let primaryDisplay = screenRetriever.GetPrimaryDisplay()
-let allDisplays = screenRetriever.GetAllDisplays()
+var displayManager = nativeapi.DisplayManager()
+let allDisplays = displayManager.GetAll()
+let primaryDisplay = displayManager.GetPrimary()
+let cursorPosition = displayManager.GetCursorPosition()
 
-print(cursorPoint)
+print(cursorPosition)
 print(primaryDisplay)
 print(allDisplays)
 
-print(primaryDisplay.id)
-print(primaryDisplay.name)
+print(primaryDisplay.width)
+print(primaryDisplay.height)

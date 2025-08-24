@@ -16,12 +16,12 @@ let package = Package(
             path: "Sources/libnativeapi",
             exclude: [
                 "examples",
-                "src/display_manager_linux.cpp",
-                "src/display_manager_windows.cpp",
+                "src/platform/linux",
+                "src/platform/windows",
             ],
             linkerSettings: [
                 .linkedFramework("Cocoa"),
-                .linkedFramework("Foundation")
+                .linkedFramework("Foundation"),
             ]
         ),
     ],

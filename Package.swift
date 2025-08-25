@@ -2,7 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "nativeapi-swift",
+    name: "nativeapi",
+    products: [
+        .library(name: "nativeapi", targets: ["nativeapi"])
+    ],
     targets: [
         .executableTarget(
             name: "Example",

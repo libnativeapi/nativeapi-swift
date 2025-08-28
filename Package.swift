@@ -2,29 +2,60 @@
 import PackageDescription
 
 let package = Package(
-    name: "nativeapi",
+    name: "NativeAPI",
+    platforms: [
+        .macOS(.v10_15),
+        .iOS(.v13),
+    ],
     products: [
-        .library(name: "nativeapi", targets: ["nativeapi"])
+        .library(name: "NativeAPI", targets: ["NativeAPI"]),
+        .executable(name: "Example", targets: ["Example"]),
     ],
     targets: [
         .executableTarget(
             name: "Example",
-            dependencies: ["nativeapi"],
+            dependencies: ["NativeAPI"],
             swiftSettings: [
                 .interoperabilityMode(.Cxx)
             ]
         ),
         .target(
-            name: "nativeapi",
+            name: "CNativeAPI",
             path: "Sources/libnativeapi",
-            exclude: [
-                "examples",
-                "src/platform/linux",
-                "src/platform/windows",
-            ],
-            linkerSettings: [
-                .linkedFramework("Cocoa"),
-                .linkedFramework("Foundation"),
+            exclude: {
+                var excluded = ["examples"]
+                #if os(Linux)
+                    excluded.append(contentsOf: ["src/platform/macos", "src/platform/windows"])
+                #elseif os(macOS)
+                    excluded.append(contentsOf: ["src/platform/linux", "src/platform/windows"])
+                #elseif os(Windows)
+                    excluded.append(contentsOf: ["src/platform/macos", "src/platform/linux"])
+                #endif
+                return excluded
+            }(),
+            linkerSettings: {
+                #if os(macOS) || os(iOS)
+                    return [
+                        .linkedFramework("Cocoa"),
+                        .linkedFramework("Foundation"),
+                    ]
+                #else
+                    return []
+                #endif
+            }()
+        ),
+        .target(
+            name: "NativeAPI",
+            dependencies: ["CNativeAPI"],
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .testTarget(
+            name: "NativeAPITests",
+            dependencies: ["NativeAPI"],
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
             ]
         ),
     ],

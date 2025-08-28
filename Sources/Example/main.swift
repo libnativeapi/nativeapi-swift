@@ -9,11 +9,9 @@ print()
 // Test basic Display functionality
 print("🚀 Testing NativeAPI Display...")
 
-let accessibilityManager = AccessibilityManager()
+AccessibilityManager.shared.enable()
 
-accessibilityManager.enable()
-
-let isAccessibilityEnabled = accessibilityManager.isEnabled()
+let isAccessibilityEnabled = AccessibilityManager.shared.isEnabled()
 
 print("✅ Accessibility is enabled:", isAccessibilityEnabled)
 

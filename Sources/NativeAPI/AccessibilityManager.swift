@@ -1,9 +1,9 @@
 import CNativeAPI
 
-public class AccessibilityManager {
-    public init() {
-        // Initialize the accessibility manager
-    }
+public class AccessibilityManager: @unchecked Sendable {
+    public static let shared = AccessibilityManager()
+
+    private init() {}
 
     public func enable() {
         native_accessibility_manager_enable()

@@ -8,11 +8,11 @@ func testDisplayManager() {
     let displayManager = DisplayManager.shared
 
     // Test display count
-    let count = displayManager.displayCount
-    print("✅ Display count: \(count)")
+    let displays = displayManager.getAll()
+    print("✅ Display count: \(displays.count)")
 
     // Test primary display
-    if let primary = displayManager.getPrimaryDisplay() {
+    if let primary = displayManager.getPrimary() {
         print("✅ Primary display: \(primary.name)")
         print("   Size: \(primary.size.width) x \(primary.size.height)")
         print("   Scale: \(primary.scaleFactor)x")
@@ -24,31 +24,11 @@ func testDisplayManager() {
         print("❌ No primary display found")
     }
 
+    displayManager.get(withId: "aaa")
+
     // Test cursor position
     let cursor = displayManager.getCursorPosition()
     print("✅ Cursor position: (\(cursor.x), \(cursor.y))")
-
-    // Test multiple displays
-    if displayManager.hasMultipleDisplays {
-        print("✅ Multiple displays detected")
-        let allDisplays = displayManager.getAllDisplays()
-        for (index, display) in allDisplays.displays.enumerated() {
-            print(
-                "   Display \(index + 1): \(display.name) (\(display.size.width)x\(display.size.height))"
-            )
-        }
-    } else {
-        print("ℹ️  Single display system")
-    }
-
-    // Test display under cursor
-    if let displayUnderCursor = displayManager.getDisplayUnderCursor() {
-        print("✅ Display under cursor: \(displayUnderCursor.name)")
-    }
-
-    // Test virtual screen bounds
-    let virtualBounds = displayManager.getVirtualScreenBounds()
-    print("✅ Virtual screen bounds: \(virtualBounds.width) x \(virtualBounds.height)")
 
     print("✅ DisplayManager test completed successfully")
     print()

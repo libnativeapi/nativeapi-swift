@@ -21,20 +21,25 @@ let package = Package(
         ),
         .target(
             name: "CNativeAPI",
-            path: "Sources/libnativeapi",
+            path: "Sources/CNativeAPI",
             exclude: {
-                var excluded = ["examples"]
+                var excluded = [
+                    "examples",
+                    "src/platform/linux",
+                    "src/platform/macos",
+                    "src/platform/windows",
+                ]
                 #if os(Linux)
-                    excluded.append(contentsOf: ["src/platform/macos", "src/platform/windows"])
+                    excluded.removeAll { $0 == "src/platform/linux" }
                 #elseif os(macOS)
-                    excluded.append(contentsOf: ["src/platform/linux", "src/platform/windows"])
+                    excluded.removeAll { $0 == "src/platform/macos" }
                 #elseif os(Windows)
-                    excluded.append(contentsOf: ["src/platform/macos", "src/platform/linux"])
+                    excluded.removeAll { $0 == "src/platform/windows" }
                 #endif
                 return excluded
             }(),
             linkerSettings: {
-                #if os(macOS) || os(iOS)
+                #if os(macOS)
                     return [
                         .linkedFramework("Cocoa"),
                         .linkedFramework("Foundation"),

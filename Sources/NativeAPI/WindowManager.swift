@@ -63,7 +63,7 @@ public class WindowManager: @unchecked Sendable {
     private init() {}
 
     /// Create a new window with the specified options
-    public func createWindow(with options: WindowOptions) -> Window? {
+    public func create(with options: WindowOptions) -> Window? {
         guard let handle = native_window_manager_create(options.cOptions) else {
             return nil
         }
@@ -71,19 +71,19 @@ public class WindowManager: @unchecked Sendable {
     }
 
     /// Create a new window with default options
-    public func createWindow() -> Window? {
+    public func create() -> Window? {
         let options = WindowOptions()
-        return createWindow(with: options)
+        return create(with: options)
     }
 
     /// Get a list of all windows
-    public func getAllWindows() -> WindowList {
+    public func getAll() -> WindowList {
         let cList = native_window_manager_get_all()
         return WindowList(cList)
     }
 
     /// Find a window by its ID
-    public func findWindow(by id: Int) -> Window? {
+    public func get(by id: Int) -> Window? {
         guard let handle = native_window_manager_get(native_window_id_t(id)) else {
             return nil
         }
@@ -91,7 +91,7 @@ public class WindowManager: @unchecked Sendable {
     }
 
     /// Get the currently focused window
-    public func getFocusedWindow() -> Window? {
+    public func getCurrent() -> Window? {
         guard let handle = native_window_manager_get_current() else {
             return nil
         }
@@ -99,7 +99,7 @@ public class WindowManager: @unchecked Sendable {
     }
 
     /// Destroy a window by its ID
-    public func destroyWindow(id: Int) -> Bool {
+    public func destroy(id: Int) -> Bool {
         return native_window_manager_destroy(native_window_id_t(id))
     }
 

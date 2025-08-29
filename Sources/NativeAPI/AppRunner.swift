@@ -44,7 +44,7 @@ public func runApp(with window: Window) -> AppExitCode {
 /// - Parameter options: Window options for creating the window
 /// - Returns: Exit code of the application (0 for success)
 public func runApp(with options: WindowOptions) -> AppExitCode {
-    guard let window = WindowManager.shared.createWindow(with: options) else {
+    guard let window = WindowManager.shared.create(with: options) else {
         return .invalidWindow
     }
     return AppRunner.shared.run(with: window)
@@ -54,7 +54,7 @@ public func runApp(with options: WindowOptions) -> AppExitCode {
 /// Creates a default window and runs the application
 /// - Returns: Exit code of the application (0 for success)
 public func runApp() -> AppExitCode {
-    guard let window = WindowManager.shared.createWindow() else {
+    guard let window = WindowManager.shared.create() else {
         return .invalidWindow
     }
     return AppRunner.shared.run(with: window)

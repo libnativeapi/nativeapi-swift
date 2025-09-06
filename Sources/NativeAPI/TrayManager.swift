@@ -19,7 +19,7 @@ public class TrayManager: @unchecked Sendable {
         guard let handle = native_tray_manager_create() else {
             return nil
         }
-        return TrayIcon(handle: handle)
+        return TrayIcon(nativeHandle: handle)
     }
 
     /// Get a tray icon by its ID
@@ -29,7 +29,7 @@ public class TrayManager: @unchecked Sendable {
         guard let handle = native_tray_manager_get(native_tray_icon_id_t(id)) else {
             return nil
         }
-        return TrayIcon(handle: handle)
+        return TrayIcon(nativeHandle: handle)
     }
 
     /// Get all managed tray icons
@@ -41,7 +41,9 @@ public class TrayManager: @unchecked Sendable {
         var trayIcons: [TrayIcon] = []
         for i in 0..<trayIconList.count {
             if let handle = trayIconList.tray_icons.advanced(by: i).pointee {
-                trayIcons.append(TrayIcon(handle: handle))
+                if let trayIcon = TrayIcon(nativeHandle: handle) {
+                    trayIcons.append(trayIcon)
+                }
             }
         }
         return trayIcons

@@ -11,7 +11,9 @@ public class DisplayManager: @unchecked Sendable {
     /// Get all available displays
     /// - Returns: Array of Display objects containing all system displays
     public func getAll() -> [Display] {
-        let cList = native_display_manager_get_all()
+        var cList = native_display_manager_get_all()
+        defer { native_display_list_free(&cList) }
+        
         var result: [Display] = []
         for i in 0..<cList.count {
             let cDisplay = cList.displays.advanced(by: i).pointee

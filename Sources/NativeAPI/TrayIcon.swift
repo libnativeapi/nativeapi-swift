@@ -18,9 +18,9 @@ public struct TrayIconDoubleClickedEvent {
 }
 
 /// Tray icon event callback types
-public typealias TrayIconClickHandler = (TrayIconClickedEvent) -> Void
-public typealias TrayIconRightClickHandler = (TrayIconRightClickedEvent) -> Void
-public typealias TrayIconDoubleClickHandler = (TrayIconDoubleClickedEvent) -> Void
+public typealias TrayIconClickHandler = (TrayIcon, TrayIconClickedEvent) -> Void
+public typealias TrayIconRightClickHandler = (TrayIcon, TrayIconRightClickedEvent) -> Void
+public typealias TrayIconDoubleClickHandler = (TrayIcon, TrayIconDoubleClickedEvent) -> Void
 
 /// TrayIcon represents a system tray icon (notification area icon).
 ///
@@ -44,16 +44,19 @@ public typealias TrayIconDoubleClickHandler = (TrayIconDoubleClickedEvent) -> Vo
 /// trayIcon.setTooltip("My Application")
 ///
 /// // Set up event listeners
-/// trayIcon.onLeftClick { event in
-///     // Handle left click - show/hide main window
-///     if mainWindow.isVisible {
-///         mainWindow.hide()
-///     } else {
-///         mainWindow.show()
+/// trayIcon.onClicked { event in
+///     // Handle click events based on button
+///     if event.button == "left" {
+///         // Handle left click - show/hide main window
+///         if mainWindow.isVisible {
+///             mainWindow.hide()
+///         } else {
+///             mainWindow.show()
+///         }
 ///     }
 /// }
 ///
-/// trayIcon.onRightClick { event in
+/// trayIcon.onRightClicked { event in
 ///     // Handle right click - show context menu
 ///     trayIcon.showContextMenu()
 /// }
@@ -69,11 +72,8 @@ public typealias TrayIconDoubleClickHandler = (TrayIconDoubleClickedEvent) -> Vo
 /// ```
 public class TrayIcon {
     private var cTrayIcon: native_tray_icon_t?
-    private var leftClickHandler: TrayIconClickHandler?
-    private var rightClickHandler: TrayIconRightClickHandler?
-    private var doubleClickHandler: TrayIconDoubleClickHandler?
     private var contextMenu: Menu?
-    private var listenerIds: [Int] = []
+    private var eventListeners: [Int32: Any] = [:]
 
     /// Unique identifier for this tray icon
     public var id: Int {
@@ -177,9 +177,13 @@ public class TrayIcon {
     /// Also releases any associated platform-specific resources.
     deinit {
         // Remove all event listeners before destroying
-        for listenerId in listenerIds {
+        for (listenerId, contextPtr) in eventListeners {
             if let cTrayIcon = cTrayIcon {
-                _ = native_tray_icon_remove_listener(cTrayIcon, Int32(listenerId))
+                _ = native_tray_icon_remove_listener(cTrayIcon, listenerId)
+            }
+            // Clean up the allocated memory for event context
+            if let ptr = contextPtr as? UnsafeMutableRawPointer {
+                ptr.deallocate()
             }
         }
         
@@ -350,18 +354,35 @@ public class TrayIcon {
         return native_tray_icon_show_context_menu_default(cTrayIcon)
     }
 
-    /// Set the left click handler for this tray icon
-    public func onLeftClick(_ handler: @escaping TrayIconClickHandler) {
-        leftClickHandler = handler
+    // MARK: - Event Handling
+    
+    /// Event handler closure types
+    public typealias TrayIconClickedHandler = (TrayIcon, TrayIconClickedEvent) -> Void
+    public typealias TrayIconRightClickedHandler = (TrayIcon, TrayIconRightClickedEvent) -> Void  
+    public typealias TrayIconDoubleClickedHandler = (TrayIcon, TrayIconDoubleClickedEvent) -> Void
 
-        guard let cTrayIcon = cTrayIcon else { return }
-
-        let userData = Unmanaged.passRetained(self).toOpaque()
-        let listenerId = native_tray_icon_add_listener(cTrayIcon, NATIVE_TRAY_ICON_EVENT_CLICKED, { (event, userData) in
-            guard let event = event, let userData = userData else { return }
-            let trayIcon = Unmanaged<TrayIcon>.fromOpaque(userData).takeUnretainedValue()
-
-            let cEvent = event.withMemoryRebound(to: native_tray_icon_clicked_event_t.self, capacity: 1) { $0.pointee }
+    /// Add event listener for tray icon clicked event
+    /// - Parameter handler: The event handler closure
+    /// - Returns: Listener ID that can be used to remove the listener
+    @discardableResult
+    public func onClicked(_ handler: @escaping TrayIconClickedHandler) -> Int32 {
+        guard let cTrayIcon = cTrayIcon else { return -1 }
+        
+        // Create a context struct to hold both the handler and self reference
+        struct EventContext {
+            let handler: TrayIconClickedHandler
+            let trayIcon: TrayIcon
+        }
+        
+        let contextPtr = UnsafeMutablePointer<EventContext>.allocate(capacity: 1)
+        contextPtr.initialize(to: EventContext(handler: handler, trayIcon: self))
+        
+        let callback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
+            guard let eventPtr = eventPtr, let userDataPtr = userDataPtr else { return }
+            let contextPtr = userDataPtr.assumingMemoryBound(to: EventContext.self)
+            let context = contextPtr.pointee
+            
+            let cEvent = eventPtr.withMemoryRebound(to: native_tray_icon_clicked_event_t.self, capacity: 1) { $0.pointee }
             let button = withUnsafeBytes(of: cEvent.button) { bytes in
                 let data = Array(bytes)
                 if let nullIndex = data.firstIndex(of: 0) {
@@ -370,93 +391,168 @@ public class TrayIcon {
                     return String(bytes: data, encoding: .utf8) ?? ""
                 }
             }
-
-            // Only handle left clicks
-            if button == "left" {
-                let swiftEvent = TrayIconClickedEvent(
-                    trayIconId: Int(cEvent.tray_icon_id),
-                    button: button
-                )
-                trayIcon.leftClickHandler?(swiftEvent)
-            }
-        }, userData)
+            
+            let swiftEvent = TrayIconClickedEvent(
+                trayIconId: Int(cEvent.tray_icon_id),
+                button: button
+            )
+            context.handler(context.trayIcon, swiftEvent)
+        }
+        
+        let listenerId = native_tray_icon_add_listener(
+            cTrayIcon,
+            NATIVE_TRAY_ICON_EVENT_CLICKED,
+            callback,
+            contextPtr
+        )
         
         if listenerId >= 0 {
-            listenerIds.append(Int(listenerId))
+            eventListeners[listenerId] = contextPtr
+        } else {
+            contextPtr.deinitialize(count: 1)
+            contextPtr.deallocate()
         }
+        
+        return listenerId
     }
 
-    /// Set the right click handler for this tray icon
-    public func onRightClick(_ handler: @escaping TrayIconRightClickHandler) {
-        rightClickHandler = handler
-
-        guard let cTrayIcon = cTrayIcon else { return }
-
-        let userData = Unmanaged.passRetained(self).toOpaque()
-        let listenerId = native_tray_icon_add_listener(cTrayIcon, NATIVE_TRAY_ICON_EVENT_RIGHT_CLICKED, { (event, userData) in
-            guard let event = event, let userData = userData else { return }
-            let trayIcon = Unmanaged<TrayIcon>.fromOpaque(userData).takeUnretainedValue()
-
-            let cEvent = event.withMemoryRebound(to: native_tray_icon_right_clicked_event_t.self, capacity: 1) { $0.pointee }
+    /// Add event listener for tray icon right clicked event
+    /// - Parameter handler: The event handler closure
+    /// - Returns: Listener ID that can be used to remove the listener
+    @discardableResult
+    public func onRightClicked(_ handler: @escaping TrayIconRightClickedHandler) -> Int32 {
+        guard let cTrayIcon = cTrayIcon else { return -1 }
+        
+        // Create a context struct to hold both the handler and self reference
+        struct EventContext {
+            let handler: TrayIconRightClickedHandler
+            let trayIcon: TrayIcon
+        }
+        
+        let contextPtr = UnsafeMutablePointer<EventContext>.allocate(capacity: 1)
+        contextPtr.initialize(to: EventContext(handler: handler, trayIcon: self))
+        
+        let callback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
+            guard let eventPtr = eventPtr, let userDataPtr = userDataPtr else { return }
+            let contextPtr = userDataPtr.assumingMemoryBound(to: EventContext.self)
+            let context = contextPtr.pointee
+            
+            let cEvent = eventPtr.withMemoryRebound(to: native_tray_icon_right_clicked_event_t.self, capacity: 1) { $0.pointee }
             let swiftEvent = TrayIconRightClickedEvent(
                 trayIconId: Int(cEvent.tray_icon_id)
             )
-            trayIcon.rightClickHandler?(swiftEvent)
-        }, userData)
+            context.handler(context.trayIcon, swiftEvent)
+        }
+        
+        let listenerId = native_tray_icon_add_listener(
+            cTrayIcon,
+            NATIVE_TRAY_ICON_EVENT_RIGHT_CLICKED,
+            callback,
+            contextPtr
+        )
         
         if listenerId >= 0 {
-            listenerIds.append(Int(listenerId))
+            eventListeners[listenerId] = contextPtr
+        } else {
+            contextPtr.deinitialize(count: 1)
+            contextPtr.deallocate()
         }
+        
+        return listenerId
     }
 
-    /// Set the double click handler for this tray icon
-    public func onDoubleClick(_ handler: @escaping TrayIconDoubleClickHandler) {
-        doubleClickHandler = handler
-
-        guard let cTrayIcon = cTrayIcon else { return }
-
-        let userData = Unmanaged.passRetained(self).toOpaque()
-        let listenerId = native_tray_icon_add_listener(cTrayIcon, NATIVE_TRAY_ICON_EVENT_DOUBLE_CLICKED, { (event, userData) in
-            guard let event = event, let userData = userData else { return }
-            let trayIcon = Unmanaged<TrayIcon>.fromOpaque(userData).takeUnretainedValue()
-
-            let cEvent = event.withMemoryRebound(to: native_tray_icon_double_clicked_event_t.self, capacity: 1) { $0.pointee }
+    /// Add event listener for tray icon double clicked event
+    /// - Parameter handler: The event handler closure
+    /// - Returns: Listener ID that can be used to remove the listener
+    @discardableResult
+    public func onDoubleClicked(_ handler: @escaping TrayIconDoubleClickedHandler) -> Int32 {
+        guard let cTrayIcon = cTrayIcon else { return -1 }
+        
+        // Create a context struct to hold both the handler and self reference
+        struct EventContext {
+            let handler: TrayIconDoubleClickedHandler
+            let trayIcon: TrayIcon
+        }
+        
+        let contextPtr = UnsafeMutablePointer<EventContext>.allocate(capacity: 1)
+        contextPtr.initialize(to: EventContext(handler: handler, trayIcon: self))
+        
+        let callback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
+            guard let eventPtr = eventPtr, let userDataPtr = userDataPtr else { return }
+            let contextPtr = userDataPtr.assumingMemoryBound(to: EventContext.self)
+            let context = contextPtr.pointee
+            
+            let cEvent = eventPtr.withMemoryRebound(to: native_tray_icon_double_clicked_event_t.self, capacity: 1) { $0.pointee }
             let swiftEvent = TrayIconDoubleClickedEvent(
                 trayIconId: Int(cEvent.tray_icon_id)
             )
-            trayIcon.doubleClickHandler?(swiftEvent)
-        }, userData)
+            context.handler(context.trayIcon, swiftEvent)
+        }
+        
+        let listenerId = native_tray_icon_add_listener(
+            cTrayIcon,
+            NATIVE_TRAY_ICON_EVENT_DOUBLE_CLICKED,
+            callback,
+            contextPtr
+        )
         
         if listenerId >= 0 {
-            listenerIds.append(Int(listenerId))
+            eventListeners[listenerId] = contextPtr
+        } else {
+            contextPtr.deinitialize(count: 1)
+            contextPtr.deallocate()
         }
+        
+        return listenerId
     }
 
-    /// Internal method to handle left mouse click events.
-    ///
-    /// This method is called internally by platform-specific code
-    /// when a left click event occurs on the tray icon.
-    internal func handleLeftClick() {
-        let event = TrayIconClickedEvent(trayIconId: id, button: "left")
-        leftClickHandler?(event)
+    /// Remove event listener
+    /// - Parameter listenerId: The listener ID returned by event registration
+    /// - Returns: true if removed successfully, false otherwise
+    @discardableResult
+    public func removeListener(_ listenerId: Int32) -> Bool {
+        guard let cTrayIcon = cTrayIcon else { return false }
+        
+        let success = native_tray_icon_remove_listener(cTrayIcon, listenerId)
+        
+        if success, let contextPtr = eventListeners.removeValue(forKey: listenerId) {
+            // Clean up the allocated memory for event context
+            if let ptr = contextPtr as? UnsafeMutableRawPointer {
+                ptr.deallocate()
+            }
+        }
+        
+        return success
+    }
+
+    // MARK: - Convenience Methods
+    
+    /// Add a convenient left click handler (filters clicked events for left button only)
+    /// - Parameter handler: The event handler closure
+    /// - Returns: Listener ID that can be used to remove the listener
+    @discardableResult
+    public func onLeftClick(_ handler: @escaping (TrayIcon, TrayIconClickedEvent) -> Void) -> Int32 {
+        return onClicked { trayIcon, event in
+            if event.button == "left" {
+                handler(trayIcon, event)
+            }
+        }
     }
     
-    /// Internal method to handle right mouse click events.
-    ///
-    /// This method is called internally by platform-specific code
-    /// when a right click event occurs on the tray icon.
-    internal func handleRightClick() {
-        let event = TrayIconRightClickedEvent(trayIconId: id)
-        rightClickHandler?(event)
+    /// Add a convenient right click handler (alias for onRightClicked)
+    /// - Parameter handler: The event handler closure
+    /// - Returns: Listener ID that can be used to remove the listener
+    @discardableResult
+    public func onRightClick(_ handler: @escaping (TrayIcon, TrayIconRightClickedEvent) -> Void) -> Int32 {
+        return onRightClicked(handler)
     }
     
-    /// Internal method to handle double click events.
-    ///
-    /// This method is called internally by platform-specific code
-    /// when a double click event occurs on the tray icon.
-    internal func handleDoubleClick() {
-        let event = TrayIconDoubleClickedEvent(trayIconId: id)
-        doubleClickHandler?(event)
+    /// Add a convenient double click handler (alias for onDoubleClicked)
+    /// - Parameter handler: The event handler closure
+    /// - Returns: Listener ID that can be used to remove the listener
+    @discardableResult
+    public func onDoubleClick(_ handler: @escaping (TrayIcon, TrayIconDoubleClickedEvent) -> Void) -> Int32 {
+        return onDoubleClicked(handler)
     }
 
     /// Get the native tray icon handle (for internal use)

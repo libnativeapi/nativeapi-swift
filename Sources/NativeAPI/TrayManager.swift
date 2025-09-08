@@ -1,40 +1,85 @@
 import CNativeAPI
 import Foundation
 
-/// Manages system tray icons
+/**
+ * TrayManager is a singleton class that manages all system tray icons.
+ *
+ * This class provides a centralized way to create, manage, and destroy system
+ * tray icons. It ensures that there's only one instance of the tray manager
+ * throughout the application lifetime and provides thread-safe operations for
+ * managing tray icons.
+ *
+ * - Note: This class is implemented as a singleton to ensure consistent
+ * management of system tray resources across the entire application.
+ */
 public class TrayManager: @unchecked Sendable {
+    /**
+     * Get the singleton instance of TrayManager.
+     *
+     * This property provides access to the unique instance of TrayManager.
+     * The instance is created on first call and remains alive for the
+     * duration of the application.
+     *
+     * - Returns: The singleton TrayManager instance
+     * - Note: This property is thread-safe
+     */
     public static let shared = TrayManager()
 
     private init() {}
 
-    /// Check if system tray is supported on the current platform
-    /// - Returns: true if system tray is supported, false otherwise
-    public var isSupported: Bool {
+    /**
+     * Check if the system tray is supported on the current platform.
+     *
+     * Some platforms or desktop environments may not support system tray
+     * functionality. This method allows checking for availability before
+     * attempting to create tray icons.
+     *
+     * - Returns: true if system tray is supported, false otherwise
+     */
+    public func isSupported() -> Bool {
         return native_tray_manager_is_supported()
     }
 
-    /// Create a new tray icon
-    /// - Returns: A new TrayIcon instance, or nil if creation failed
-    public func createTrayIcon() -> TrayIcon? {
+    /**
+     * Create a new system tray icon.
+     *
+     * Creates a new tray icon instance and registers it with the manager.
+     * The tray icon will be assigned a unique ID for future reference.
+     *
+     * - Returns: A new TrayIcon instance, or nil if creation failed
+     * - Note: The returned tray icon is automatically managed by this TrayManager
+     */
+    public func create() -> TrayIcon? {
         guard let handle = native_tray_manager_create() else {
             return nil
         }
         return TrayIcon(nativeHandle: handle)
     }
 
-    /// Get a tray icon by its ID
-    /// - Parameter id: The tray icon ID
-    /// - Returns: TrayIcon instance, or nil if not found
-    public func getTrayIcon(withId id: Int) -> TrayIcon? {
+    /**
+     * Get a tray icon by its unique ID.
+     *
+     * Retrieves a previously created tray icon using its assigned ID.
+     *
+     * - Parameter id: The unique identifier of the tray icon
+     * - Returns: TrayIcon instance, or nil if not found
+     */
+    public func get(id: Int) -> TrayIcon? {
         guard let handle = native_tray_manager_get(native_tray_icon_id_t(id)) else {
             return nil
         }
         return TrayIcon(nativeHandle: handle)
     }
 
-    /// Get all managed tray icons
-    /// - Returns: Array of all tray icons
-    public func getAllTrayIcons() -> [TrayIcon] {
+    /**
+     * Get all managed tray icons.
+     *
+     * Returns an array containing all currently active tray icons
+     * managed by this TrayManager instance.
+     *
+     * - Returns: Array of all active TrayIcon instances
+     */
+    public func getAll() -> [TrayIcon] {
         let trayIconList = native_tray_manager_get_all()
         defer { native_tray_icon_list_free(trayIconList) }
 
@@ -49,163 +94,18 @@ public class TrayManager: @unchecked Sendable {
         return trayIcons
     }
 
-    /// Destroy a tray icon by its ID
-    /// - Parameter id: The tray icon ID to destroy
-    /// - Returns: true if tray icon was found and destroyed, false otherwise
+    /**
+     * Destroy a tray icon by its ID.
+     *
+     * Removes and destroys a tray icon identified by its unique ID.
+     * This will remove the icon from the system tray and clean up
+     * associated resources.
+     *
+     * - Parameter id: The unique identifier of the tray icon to destroy
+     * - Returns: true if the tray icon was found and destroyed, false otherwise
+     */
     @discardableResult
-    public func destroyTrayIcon(withId id: Int) -> Bool {
+    public func destroy(id: Int) -> Bool {
         return native_tray_manager_destroy(native_tray_icon_id_t(id))
-    }
-
-    /// Destroy a tray icon
-    /// - Parameter trayIcon: The tray icon to destroy
-    /// - Returns: true if tray icon was found and destroyed, false otherwise
-    @discardableResult
-    public func destroyTrayIcon(_ trayIcon: TrayIcon) -> Bool {
-        return destroyTrayIcon(withId: trayIcon.id)
-    }
-}
-
-// MARK: - Convenience Methods
-
-extension TrayManager {
-    /// Create and configure a tray icon in one step
-    /// - Parameters:
-    ///   - icon: Path to icon file or base64 encoded image data
-    ///   - tooltip: The tooltip text (optional)
-    ///   - title: The title text (optional)
-    ///   - configure: Additional configuration closure (optional)
-    /// - Returns: A new TrayIcon instance, or nil if creation failed
-    public func createTrayIcon(
-        icon: String,
-        tooltip: String? = nil,
-        title: String? = nil,
-        configure: ((TrayIcon) -> Void)? = nil
-    ) -> TrayIcon? {
-        guard let trayIcon = createTrayIcon() else {
-            return nil
-        }
-
-        trayIcon.setIcon(icon)
-        if let tooltip = tooltip {
-            trayIcon.setTooltip(tooltip)
-        }
-        if let title = title {
-            trayIcon.setTitle(title)
-        }
-
-        configure?(trayIcon)
-        return trayIcon
-    }
-
-    /// Create a tray icon with a context menu
-    /// - Parameters:
-    ///   - icon: Path to icon file or base64 encoded image data
-    ///   - tooltip: The tooltip text (optional)
-    ///   - menuBuilder: Closure to build the context menu
-    /// - Returns: A new TrayIcon instance, or nil if creation failed
-    public func createTrayIcon(
-        icon: String,
-        tooltip: String? = nil,
-        menuBuilder: (Menu) -> Void
-    ) -> TrayIcon? {
-        guard let trayIcon = createTrayIcon() else {
-            return nil
-        }
-
-        trayIcon.setIcon(icon)
-        if let tooltip = tooltip {
-            trayIcon.setTooltip(tooltip)
-        }
-
-        let menu = Menu()
-        menuBuilder(menu)
-        trayIcon.setContextMenu(menu)
-
-        return trayIcon
-    }
-
-    /// Create a tray icon with a pre-built context menu
-    /// - Parameters:
-    ///   - icon: Path to icon file or base64 encoded image data
-    ///   - tooltip: The tooltip text (optional)
-    ///   - menu: An existing menu to attach
-    /// - Returns: A new TrayIcon instance, or nil if creation failed
-    public func createTrayIcon(
-        icon: String,
-        tooltip: String? = nil,
-        menu: Menu
-    ) -> TrayIcon? {
-        guard let trayIcon = createTrayIcon() else {
-            return nil
-        }
-
-        trayIcon.setIcon(icon)
-        if let tooltip = tooltip {
-            trayIcon.setTooltip(tooltip)
-        }
-
-        trayIcon.setContextMenu(menu)
-        return trayIcon
-    }
-
-    /// Get the number of currently managed tray icons
-    public var trayIconCount: Int {
-        return getAllTrayIcons().count
-    }
-
-    /// Check if there are any managed tray icons
-    public var hasActiveTrayIcons: Bool {
-        return trayIconCount > 0
-    }
-
-    /// Destroy all managed tray icons
-    /// - Returns: Number of tray icons that were destroyed
-    @discardableResult
-    public func destroyAllTrayIcons() -> Int {
-        let trayIcons = getAllTrayIcons()
-        var destroyedCount = 0
-
-        for trayIcon in trayIcons {
-            if destroyTrayIcon(trayIcon) {
-                destroyedCount += 1
-            }
-        }
-
-        return destroyedCount
-    }
-}
-
-// MARK: - Static Convenience Methods
-
-extension TrayManager {
-    /// Quick check if system tray is available
-    /// - Returns: true if system tray is supported, false otherwise
-    public static var isSystemTraySupported: Bool {
-        return TrayManager.shared.isSupported
-    }
-
-    /// Quick access to create a tray icon
-    /// - Returns: A new TrayIcon instance, or nil if creation failed
-    public static func createTrayIcon() -> TrayIcon? {
-        return TrayManager.shared.createTrayIcon()
-    }
-
-    /// Quick access to create and configure a tray icon
-    /// - Parameters:
-    ///   - icon: Path to icon file or base64 encoded image data
-    ///   - tooltip: The tooltip text (optional)
-    ///   - configure: Configuration closure (optional)
-    /// - Returns: A new TrayIcon instance, or nil if creation failed
-    public static func createTrayIcon(
-        icon: String,
-        tooltip: String? = nil,
-        configure: ((TrayIcon) -> Void)? = nil
-    ) -> TrayIcon? {
-        return TrayManager.shared.createTrayIcon(
-            icon: icon,
-            tooltip: tooltip,
-            configure: configure
-        )
     }
 }

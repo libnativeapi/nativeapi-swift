@@ -27,12 +27,20 @@ import NativeAPI
     print("✅ Tray icon configured")
 
     // Create context menu for tray icon
-    let contextMenu = Menu()
+    guard let contextMenu = Menu.create() else {
+        print("❌ Failed to create context menu")
+        return
+    }
 
     // Add "Show Window" menu item
-    let showItem = contextMenu.addItem(text: "显示窗口") { event in
+    guard let showItem = MenuItem.create("显示窗口") else {
+        print("❌ Failed to create show item")
+        return
+    }
+    contextMenu.addItem(showItem)
+    showItem.onClicked { menuItem in
         print("📱 显示窗口 - 菜单项点击成功!")
-        print("   事件详情: ID=\(event.itemId), Text='\(event.itemText)'")
+        print("   菜单项详情: ID=\(menuItem.id), Text='\(menuItem.getText())'")
     }
     print("✅ 创建'显示窗口'菜单项，ID: \(showItem.id)")
 
@@ -40,18 +48,28 @@ import NativeAPI
     contextMenu.addSeparator()
 
     // Add "About" menu item
-    let aboutItem = contextMenu.addItem(text: "关于") { event in
+    guard let aboutItem = MenuItem.create("关于") else {
+        print("❌ Failed to create about item")
+        return
+    }
+    contextMenu.addItem(aboutItem)
+    aboutItem.onClicked { menuItem in
         print("ℹ️ 关于菜单项点击成功!")
         print("   NativeAPI Demo v1.0")
-        print("   事件详情: ID=\(event.itemId), Text='\(event.itemText)'")
+        print("   菜单项详情: ID=\(menuItem.id), Text='\(menuItem.getText())'")
     }
     print("✅ 创建'关于'菜单项，ID: \(aboutItem.id)")
 
     // Add "Settings" menu item
-    let settingsItem = contextMenu.addItem(text: "设置") { event in
+    guard let settingsItem = MenuItem.create("设置") else {
+        print("❌ Failed to create settings item")
+        return
+    }
+    contextMenu.addItem(settingsItem)
+    settingsItem.onClicked { menuItem in
         print("⚙️ 设置菜单项点击成功!")
         print("   打开设置面板")
-        print("   事件详情: ID=\(event.itemId), Text='\(event.itemText)'")
+        print("   菜单项详情: ID=\(menuItem.id), Text='\(menuItem.getText())'")
     }
     print("✅ 创建'设置'菜单项，ID: \(settingsItem.id)")
 
@@ -62,25 +80,35 @@ import NativeAPI
     print("📝 添加 Checkbox 菜单项演示...")
 
     // First create the checkbox items without event handlers
-    let showToolbarItem = contextMenu.addCheckboxItem(text: "显示工具栏", checked: true)
-    print("✅ 创建复选框'显示工具栏'，ID: \(showToolbarItem.id), 初始状态: \(showToolbarItem.isChecked)")
+    guard let showToolbarItem = MenuItem.create("显示工具栏", type: .checkbox) else {
+        print("❌ Failed to create toolbar checkbox")
+        return
+    }
+    showToolbarItem.setChecked(true)
+    contextMenu.addItem(showToolbarItem)
+    print("✅ 创建复选框'显示工具栏'，ID: \(showToolbarItem.id), 初始状态: \(showToolbarItem.isChecked())")
 
-    let autoSaveItem = contextMenu.addCheckboxItem(text: "自动保存", checked: false)
-    print("✅ 创建复选框'自动保存'，ID: \(autoSaveItem.id), 初始状态: \(autoSaveItem.isChecked)")
+    guard let autoSaveItem = MenuItem.create("自动保存", type: .checkbox) else {
+        print("❌ Failed to create autosave checkbox")
+        return
+    }
+    autoSaveItem.setChecked(false)
+    contextMenu.addItem(autoSaveItem)
+    print("✅ 创建复选框'自动保存'，ID: \(autoSaveItem.id), 初始状态: \(autoSaveItem.isChecked())")
 
     // Now add event handlers after the variables are declared
-    showToolbarItem.onClick { event in
-        let isChecked = showToolbarItem.isChecked
+    showToolbarItem.onClicked { menuItem in
+        let isChecked = menuItem.isChecked()
         print("☑️ 工具栏显示状态切换: \(isChecked)")
         print("   工具栏现在\(isChecked ? "显示" : "隐藏")")
-        print("   事件详情: ID=\(event.itemId), Text='\(event.itemText)'")
+        print("   菜单项详情: ID=\(menuItem.id), Text='\(menuItem.getText())'")
     }
 
-    autoSaveItem.onClick { event in
-        let isChecked = autoSaveItem.isChecked
+    autoSaveItem.onClicked { menuItem in
+        let isChecked = menuItem.isChecked()
         print("☑️ 自动保存状态切换: \(isChecked)")
         print("   自动保存功能\(isChecked ? "已启用" : "已禁用")")
-        print("   事件详情: ID=\(event.itemId), Text='\(event.itemText)'")
+        print("   菜单项详情: ID=\(menuItem.id), Text='\(menuItem.getText())'")
     }
 
     // Add separator
@@ -90,42 +118,68 @@ import NativeAPI
     print("📝 添加 Radio 按钮组演示...")
 
     // First create the radio items without event handlers
-    let compactViewItem = contextMenu.addRadioItem(text: "紧凑视图", groupId: 1, checked: false)
-    print("✅ 创建单选按钮'紧凑视图'，ID: \(compactViewItem.id), 组: 1, 选中: \(compactViewItem.isChecked)")
+    guard let compactViewItem = MenuItem.create("紧凑视图", type: .radio) else {
+        print("❌ Failed to create compact view radio")
+        return
+    }
+    compactViewItem.setRadioGroup(1)
+    compactViewItem.setChecked(false)
+    contextMenu.addItem(compactViewItem)
+    print("✅ 创建单选按钮'紧凑视图'，ID: \(compactViewItem.id), 组: 1, 选中: \(compactViewItem.isChecked())")
 
-    let normalViewItem = contextMenu.addRadioItem(text: "普通视图", groupId: 1, checked: true)
-    print("✅ 创建单选按钮'普通视图'，ID: \(normalViewItem.id), 组: 1, 选中: \(normalViewItem.isChecked)")
+    guard let normalViewItem = MenuItem.create("普通视图", type: .radio) else {
+        print("❌ Failed to create normal view radio")
+        return
+    }
+    normalViewItem.setRadioGroup(1)
+    normalViewItem.setChecked(true)
+    contextMenu.addItem(normalViewItem)
+    print("✅ 创建单选按钮'普通视图'，ID: \(normalViewItem.id), 组: 1, 选中: \(normalViewItem.isChecked())")
 
-    let detailedViewItem = contextMenu.addRadioItem(text: "详细视图", groupId: 1, checked: false)
-    print("✅ 创建单选按钮'详细视图'，ID: \(detailedViewItem.id), 组: 1, 选中: \(detailedViewItem.isChecked)")
+    guard let detailedViewItem = MenuItem.create("详细视图", type: .radio) else {
+        print("❌ Failed to create detailed view radio")
+        return
+    }
+    detailedViewItem.setRadioGroup(1)
+    detailedViewItem.setChecked(false)
+    contextMenu.addItem(detailedViewItem)
+    print("✅ 创建单选按钮'详细视图'，ID: \(detailedViewItem.id), 组: 1, 选中: \(detailedViewItem.isChecked())")
 
     // Now add event handlers after the variables are declared
-    compactViewItem.onClick { event in
+    compactViewItem.onClicked { menuItem in
+        menuItem.setState(.checked)
         print("🔘 视图模式切换为: 紧凑视图")
         print("   Radio 组 ID: 1")
-        print("   事件详情: ID=\(event.itemId), Text='\(event.itemText)'")
+        print("   菜单项详情: ID=\(menuItem.id), Text='\(menuItem.getText())'")
     }
 
-    normalViewItem.onClick { event in
+    normalViewItem.onClicked { menuItem in
+        menuItem.setState(.checked)
         print("🔘 视图模式切换为: 普通视图")
         print("   Radio 组 ID: 1")
-        print("   事件详情: ID=\(event.itemId), Text='\(event.itemText)'")
+        print("   菜单项详情: ID=\(menuItem.id), Text='\(menuItem.getText())'")
     }
 
-    detailedViewItem.onClick { event in
+    detailedViewItem.onClicked { menuItem in
+        menuItem.setState(.checked)
         print("🔘 视图模式切换为: 详细视图")
         print("   Radio 组 ID: 1")
-        print("   事件详情: ID=\(event.itemId), Text='\(event.itemText)'")
+        print("   菜单项详情: ID=\(menuItem.id), Text='\(menuItem.getText())'")
     }
 
     // Add separator
     contextMenu.addSeparator()
 
     // Add "Exit" menu item
-    let exitItem = contextMenu.addItem(text: "退出") { event in
+    guard let exitItem = MenuItem.create("退出") else {
+        print("❌ Failed to create exit item")
+        return
+    }
+    contextMenu.addItem(exitItem)
+    exitItem.onClicked { menuItem in
         print("👋 退出菜单项点击成功!")
         print("   退出应用程序")
-        print("   事件详情: ID=\(event.itemId), Text='\(event.itemText)'")
+        print("   菜单项详情: ID=\(menuItem.id), Text='\(menuItem.getText())'")
         exit(0)
     }
     print("✅ 创建'退出'菜单项，ID: \(exitItem.id)")
@@ -158,9 +212,8 @@ import NativeAPI
         print("💡 Tray icon is visible: \(trayIcon.isVisible)")
         print("💡 右键点击托盘图标可查看菜单")
 
-        if let bounds = trayIcon.bounds {
-            print("💡 Tray icon bounds: (\(bounds.x), \(bounds.y), \(bounds.width)x\(bounds.height))")
-        }
+        let bounds = trayIcon.bounds
+        print("💡 Tray icon bounds: (\(bounds.x), \(bounds.y), \(bounds.width)x\(bounds.height))")
     } else {
         print("❌ Failed to show tray icon")
     }

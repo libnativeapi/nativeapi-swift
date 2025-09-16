@@ -22,16 +22,10 @@ import NativeAPI
     trayIcon.setTooltip("NativeAPI Tray Icon Demo")
 
     // Create context menu for tray icon
-    guard let contextMenu = Menu.create() else {
-        print("❌ Failed to create context menu")
-        return
-    }
+    let contextMenu = Menu()
 
     // Add "Show Window" menu item
-    guard let showItem = MenuItem.create("显示窗口") else {
-        print("❌ Failed to create show item")
-        return
-    }
+    let showItem = MenuItem("显示窗口")
     contextMenu.addItem(showItem)
     showItem.onClicked { menuItem in
         print("📱 显示窗口")
@@ -41,20 +35,14 @@ import NativeAPI
     contextMenu.addSeparator()
 
     // Add "About" menu item
-    guard let aboutItem = MenuItem.create("关于") else {
-        print("❌ Failed to create about item")
-        return
-    }
+    let aboutItem = MenuItem("关于")
     contextMenu.addItem(aboutItem)
     aboutItem.onClicked { menuItem in
         print("ℹ️ 关于 - NativeAPI Demo v1.0")
     }
 
     // Add "Settings" menu item
-    guard let settingsItem = MenuItem.create("设置") else {
-        print("❌ Failed to create settings item")
-        return
-    }
+    let settingsItem = MenuItem("设置")
     contextMenu.addItem(settingsItem)
     settingsItem.onClicked { menuItem in
         print("⚙️ 打开设置面板")
@@ -64,17 +52,11 @@ import NativeAPI
     contextMenu.addSeparator()
 
     // Add checkbox items for demonstration
-    guard let showToolbarItem = MenuItem.create("显示工具栏", type: .checkbox) else {
-        print("❌ Failed to create toolbar checkbox")
-        return
-    }
+    let showToolbarItem = MenuItem("显示工具栏", type: .checkbox)
     showToolbarItem.setChecked(true)
     contextMenu.addItem(showToolbarItem)
 
-    guard let autoSaveItem = MenuItem.create("自动保存", type: .checkbox) else {
-        print("❌ Failed to create autosave checkbox")
-        return
-    }
+    let autoSaveItem = MenuItem("自动保存", type: .checkbox)
     autoSaveItem.setChecked(false)
     contextMenu.addItem(autoSaveItem)
 
@@ -93,26 +75,17 @@ import NativeAPI
     contextMenu.addSeparator()
 
     // Add radio button group for view mode selection
-    guard let compactViewItem = MenuItem.create("紧凑视图", type: .radio) else {
-        print("❌ Failed to create compact view radio")
-        return
-    }
+    let compactViewItem = MenuItem("紧凑视图", type: .radio)
     compactViewItem.setRadioGroup(1)
     compactViewItem.setChecked(false)
     contextMenu.addItem(compactViewItem)
 
-    guard let normalViewItem = MenuItem.create("普通视图", type: .radio) else {
-        print("❌ Failed to create normal view radio")
-        return
-    }
+    let normalViewItem = MenuItem("普通视图", type: .radio)
     normalViewItem.setRadioGroup(1)
     normalViewItem.setChecked(true)
     contextMenu.addItem(normalViewItem)
 
-    guard let detailedViewItem = MenuItem.create("详细视图", type: .radio) else {
-        print("❌ Failed to create detailed view radio")
-        return
-    }
+    let detailedViewItem = MenuItem("详细视图", type: .radio)
     detailedViewItem.setRadioGroup(1)
     detailedViewItem.setChecked(false)
     contextMenu.addItem(detailedViewItem)
@@ -137,10 +110,7 @@ import NativeAPI
     contextMenu.addSeparator()
 
     // Add "Exit" menu item
-    guard let exitItem = MenuItem.create("退出") else {
-        print("❌ Failed to create exit item")
-        return
-    }
+    let exitItem = MenuItem("退出")
     contextMenu.addItem(exitItem)
     exitItem.onClicked { menuItem in
         print("👋 退出应用程序")

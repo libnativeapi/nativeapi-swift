@@ -15,6 +15,7 @@ let package = Package(
         .executableTarget(
             name: "Example",
             dependencies: ["NativeAPI"],
+            path: "Examples/Example",
             swiftSettings: [
                 .interoperabilityMode(.Cxx)
             ]

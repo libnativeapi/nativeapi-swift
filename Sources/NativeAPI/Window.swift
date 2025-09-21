@@ -343,9 +343,9 @@ public class Window {
 
     // MARK: - Platform-specific
 
-    /// Get the NSWindow handle (macOS only)
-    public var nsWindow: UnsafeMutableRawPointer? {
-        return native_window_get_ns_window(handle)
+    /// Get the native object handle
+    public var nativeObject: UnsafeMutableRawPointer? {
+        return native_window_get_native_object(handle)
     }
 }
 

@@ -16,7 +16,7 @@ final class MenuTests: XCTestCase {
     func testMenuItemCreation() {
         let item = MenuItem("Test Item", type: .normal)
         XCTAssertGreaterThan(item.id, 0)
-        XCTAssertEqual(item.getText(), "Test Item")
+        XCTAssertEqual(item.getLabel(), "Test Item")
         XCTAssertEqual(item.getType(), .normal)
         XCTAssertTrue(item.isEnabled())
         XCTAssertTrue(item.isVisible())
@@ -40,9 +40,9 @@ final class MenuTests: XCTestCase {
     func testMenuItemProperties() {
         let item = MenuItem("Test", type: .normal)
 
-        // Test text property
-        item.setText("Updated Text")
-        XCTAssertEqual(item.getText(), "Updated Text")
+        // Test label property
+        item.setLabel("Updated Text")
+        XCTAssertEqual(item.getLabel(), "Updated Text")
 
         // Test icon property
         item.setIcon("test-icon.png")
@@ -108,12 +108,12 @@ final class MenuTests: XCTestCase {
         // Test getting items
         let retrievedItem = menu.getItemAt(0)
         XCTAssertNotNil(retrievedItem)
-        XCTAssertEqual(retrievedItem?.getText(), "Item 1")
+        XCTAssertEqual(retrievedItem?.getLabel(), "Item 1")
 
         // Test finding items
         let foundItem = menu.findItemByText("Item 2")
         XCTAssertNotNil(foundItem)
-        XCTAssertEqual(foundItem?.getText(), "Item 2")
+        XCTAssertEqual(foundItem?.getLabel(), "Item 2")
 
         // Test removing items
         let removed = menu.removeItem(item1)
@@ -150,9 +150,9 @@ final class MenuTests: XCTestCase {
         menu.insertItem(item2, at: 1)
 
         XCTAssertEqual(menu.getItemCount(), 3)
-        XCTAssertEqual(menu.getItemAt(0)?.getText(), "Item 1")
-        XCTAssertEqual(menu.getItemAt(1)?.getText(), "Item 2")
-        XCTAssertEqual(menu.getItemAt(2)?.getText(), "Item 3")
+        XCTAssertEqual(menu.getItemAt(0)?.getLabel(), "Item 1")
+        XCTAssertEqual(menu.getItemAt(1)?.getLabel(), "Item 2")
+        XCTAssertEqual(menu.getItemAt(2)?.getLabel(), "Item 3")
     }
 
     func testSubmenus() {
@@ -177,7 +177,7 @@ final class MenuTests: XCTestCase {
         let item = MenuItem("Test Item", type: .normal)
 
         item.onClicked { menuItem in
-            XCTAssertEqual(menuItem.getText(), "Test Item")
+            XCTAssertEqual(menuItem.getLabel(), "Test Item")
         }
 
         menu.addItem(item)
@@ -233,8 +233,8 @@ final class MenuTests: XCTestCase {
 
         let allItems = menu.getAllItems()
         XCTAssertEqual(allItems.count, 3)
-        XCTAssertEqual(allItems[0].getText(), "Item 1")
-        XCTAssertEqual(allItems[1].getText(), "Item 2")
+        XCTAssertEqual(allItems[0].getLabel(), "Item 1")
+        XCTAssertEqual(allItems[1].getLabel(), "Item 2")
         XCTAssertEqual(allItems[2].getType(), .separator)
     }
 
@@ -260,7 +260,7 @@ final class MenuTests: XCTestCase {
         let removed = menu.removeItemAt(0)
         XCTAssertTrue(removed)
         XCTAssertEqual(menu.getItemCount(), 1)
-        XCTAssertEqual(menu.getItemAt(0)?.getText(), "Item 2")
+        XCTAssertEqual(menu.getItemAt(0)?.getLabel(), "Item 2")
     }
 
     func testFindNonExistentItem() {

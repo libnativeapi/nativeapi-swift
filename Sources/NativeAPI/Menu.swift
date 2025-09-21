@@ -171,10 +171,10 @@ public class MenuItem {
 
     /// Create a new menu item.
     /// - Parameters:
-    ///   - text: The display text for the menu item
+    ///   - label: The display label for the menu item
     ///   - type: The type of menu item to create
-    public init(_ text: String = "", type: MenuItemType = .normal) {
-        let nativeItem = native_menu_item_create(text, type.nativeValue)
+    public init(_ label: String = "", type: MenuItemType = .normal) {
+        let nativeItem = native_menu_item_create(label, type.nativeValue)
         self.nativeItem = nativeItem!
     }
 
@@ -201,20 +201,20 @@ public class MenuItem {
         return MenuItemType(nativeValue: nativeType)
     }
 
-    /// Set the display text for the menu item.
-    /// - Parameter text: The text to display
-    public func setText(_ text: String) {
-        native_menu_item_set_text(nativeItem, text)
+    /// Set the display label for the menu item.
+    /// - Parameter label: The label to display
+    public func setLabel(_ label: String) {
+        native_menu_item_set_label(nativeItem, label)
     }
 
-    /// Get the current display text of the menu item.
-    /// - Returns: The current text as a string
-    public func getText() -> String {
+    /// Get the current display label of the menu item.
+    /// - Returns: The current label as a string
+    public func getLabel() -> String {
         let bufferSize = 1024
         let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: bufferSize)
         defer { buffer.deallocate() }
 
-        let result = native_menu_item_get_text(nativeItem, buffer, bufferSize)
+        let result = native_menu_item_get_label(nativeItem, buffer, bufferSize)
         guard result >= 0 else { return "" }
 
         return String(cString: buffer)

@@ -120,18 +120,18 @@ import NativeAPI
     // Set the context menu for tray icon
     trayIcon.setContextMenu(contextMenu)
 
-    // Configure click handlers
-    trayIcon.onLeftClick { trayIcon, event in
-        print("👆 托盘图标左键点击")
-    }
+    // // Configure click handlers
+    // trayIcon.onLeftClick { trayIcon, event in
+    //     print("👆 托盘图标左键点击")
+    // }
 
-    trayIcon.onRightClick { trayIcon, event in
-        print("👆 托盘图标右键点击")
-    }
+    // trayIcon.onRightClick { trayIcon, event in
+    //     print("👆 托盘图标右键点击")
+    // }
 
-    trayIcon.onDoubleClick { trayIcon, event in
-        print("👆 托盘图标双击")
-    }
+    // trayIcon.onDoubleClick { trayIcon, event in
+    //     print("👆 托盘图标双击")
+    // }
 
     // Show the tray icon
     if trayIcon.show() {

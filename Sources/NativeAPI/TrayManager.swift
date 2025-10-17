@@ -36,24 +36,8 @@ public class TrayManager: @unchecked Sendable {
      *
      * - Returns: true if system tray is supported, false otherwise
      */
-    public func isSupported() -> Bool {
+    public var isSupported: Bool {
         return native_tray_manager_is_supported()
-    }
-
-    /**
-     * Create a new system tray icon.
-     *
-     * Creates a new tray icon instance and registers it with the manager.
-     * The tray icon will be assigned a unique ID for future reference.
-     *
-     * - Returns: A new TrayIcon instance, or nil if creation failed
-     * - Note: The returned tray icon is automatically managed by this TrayManager
-     */
-    public func create() -> TrayIcon? {
-        guard let handle = native_tray_manager_create() else {
-            return nil
-        }
-        return TrayIcon(nativeHandle: handle)
     }
 
     /**
@@ -92,20 +76,5 @@ public class TrayManager: @unchecked Sendable {
             }
         }
         return trayIcons
-    }
-
-    /**
-     * Destroy a tray icon by its ID.
-     *
-     * Removes and destroys a tray icon identified by its unique ID.
-     * This will remove the icon from the system tray and clean up
-     * associated resources.
-     *
-     * - Parameter id: The unique identifier of the tray icon to destroy
-     * - Returns: true if the tray icon was found and destroyed, false otherwise
-     */
-    @discardableResult
-    public func destroy(id: Int) -> Bool {
-        return native_tray_manager_destroy(native_tray_icon_id_t(id))
     }
 }

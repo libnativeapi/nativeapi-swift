@@ -1,71 +1,7 @@
 import CNativeAPI
 import Foundation
 
-/// Represents a point with x and y coordinates
-public struct Point {
-    public let x: Double
-    public let y: Double
-
-    public init(x: Double, y: Double) {
-        self.x = x
-        self.y = y
-    }
-
-    internal init(_ cPoint: native_point_t) {
-        self.x = cPoint.x
-        self.y = cPoint.y
-    }
-
-    internal var cStruct: native_point_t {
-        return native_point_t(x: x, y: y)
-    }
-}
-
-/// Represents a size with width and height
-public struct Size {
-    public let width: Double
-    public let height: Double
-
-    public init(width: Double, height: Double) {
-        self.width = width
-        self.height = height
-    }
-
-    internal init(_ cSize: native_size_t) {
-        self.width = cSize.width
-        self.height = cSize.height
-    }
-
-    internal var cStruct: native_size_t {
-        return native_size_t(width: width, height: height)
-    }
-}
-
-/// Represents a rectangle with position and size
-public struct Rectangle {
-    public let x: Double
-    public let y: Double
-    public let width: Double
-    public let height: Double
-
-    public init(x: Double, y: Double, width: Double, height: Double) {
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-    }
-
-    internal init(_ cRect: native_rectangle_t) {
-        self.x = cRect.x
-        self.y = cRect.y
-        self.width = cRect.width
-        self.height = cRect.height
-    }
-
-    internal var cStruct: native_rectangle_t {
-        return native_rectangle_t(x: x, y: y, width: width, height: height)
-    }
-}
+// Geometry types are now defined in Foundation/Geometry.swift
 
 /// Window options for creating new windows
 public class WindowOptions {
@@ -227,8 +163,8 @@ public class Window {
     // MARK: - Geometry
 
     /// Get or set the window bounds (position and size)
-    public var bounds: Rectangle {
-        get { return Rectangle(native_window_get_bounds(handle)) }
+    public var bounds: Rect {
+        get { return Rect(native_window_get_bounds(handle)) }
         set { native_window_set_bounds(handle, newValue.cStruct) }
     }
 

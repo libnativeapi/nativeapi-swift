@@ -1,0 +1,198 @@
+import Foundation
+
+/// Base protocol for all events
+public protocol Event {
+    /// The event type identifier
+    static var eventType: String { get }
+}
+
+/// Event listener protocol
+public protocol EventListener {
+    associatedtype EventType: Event
+    func onEvent(_ event: EventType)
+}
+
+/// Callback-based event listener
+public struct CallbackEventListener<EventType: Event>: EventListener {
+    private let callback: (EventType) -> Void
+    
+    public init(_ callback: @escaping (EventType) -> Void) {
+        self.callback = callback
+    }
+    
+    public func onEvent(_ event: EventType) {
+        callback(event)
+    }
+}
+
+/// Event emitter protocol that provides event emission capabilities
+public protocol EventEmitter: AnyObject {
+    /// Add a typed event listener for a specific event type
+    /// - Parameter listener: The event listener
+    /// - Returns: Unique listener ID that can be used to remove the listener
+    func addListener<T: Event>(_ listener: CallbackEventListener<T>) -> Int
+    
+    /// Add a callback function as a listener for a specific event type
+    /// - Parameter callback: The callback function
+    /// - Returns: Unique listener ID that can be used to remove the listener
+    func addCallbackListener<T: Event>(_ callback: @escaping (T) -> Void) -> Int
+    
+    /// Remove a listener by its ID
+    /// - Parameter listenerId: The listener ID
+    /// - Returns: true if the listener was found and removed, false otherwise
+    func removeListener(_ listenerId: Int) -> Bool
+    
+    /// Remove all listeners for a specific event type, or all listeners if no type is specified
+    func removeAllListeners<T: Event>(_ eventType: T.Type)
+    func removeAllListeners()
+    
+    /// Get the number of listeners registered for a specific event type
+    func getListenerCount<T: Event>(_ eventType: T.Type) -> Int
+    
+    /// Get the total number of registered listeners across all event types
+    var totalListenerCount: Int { get }
+    
+    /// Check if there are any listeners for a specific event type
+    func hasListeners<T: Event>(_ eventType: T.Type) -> Bool
+    
+    /// Emit an event synchronously to all registered listeners
+    func emitSync<T: Event>(_ event: T)
+    
+    /// Emit an event synchronously using a factory function
+    func emitSyncWithFactory<T: Event>(_ eventFactory: () -> T)
+    
+    /// Emit an event asynchronously
+    func emitAsync<T: Event>(_ event: T)
+    
+    /// Emit an event asynchronously using a factory function
+    func emitAsyncWithFactory<T: Event>(_ eventFactory: @escaping () -> T)
+    
+    /// Dispose of the event emitter and clean up resources
+    func disposeEventEmitter()
+}
+
+/// Default implementation of EventEmitter
+open class BaseEventEmitter: EventEmitter {
+    /// Map of event types to their listeners
+    private var listeners: [String: [Int: any EventListener]] = [:]
+    
+    /// Counter for generating unique listener IDs
+    private var nextListenerId: Int = 0
+    
+    /// Queue for asynchronous event emission
+    private let eventQueue = DispatchQueue(label: "EventEmitter.queue", qos: .userInitiated)
+    
+    public init() {}
+    
+    public func addListener<T: Event>(_ listener: CallbackEventListener<T>) -> Int {
+        let eventType = T.eventType
+        let listenerId = nextListenerId
+        nextListenerId += 1
+        
+        if listeners[eventType] == nil {
+            listeners[eventType] = [:]
+        }
+        listeners[eventType]![listenerId] = listener
+        
+        return listenerId
+    }
+    
+    public func addCallbackListener<T: Event>(_ callback: @escaping (T) -> Void) -> Int {
+        let listener = CallbackEventListener<T>(callback)
+        return addListener(listener)
+    }
+    
+    public func removeListener(_ listenerId: Int) -> Bool {
+        for (eventType, eventListeners) in listeners {
+            var mutableListeners = eventListeners
+            if mutableListeners.removeValue(forKey: listenerId) != nil {
+                if mutableListeners.isEmpty {
+                    listeners.removeValue(forKey: eventType)
+                } else {
+                    listeners[eventType] = mutableListeners
+                }
+                return true
+            }
+        }
+        return false
+    }
+    
+    public func removeAllListeners<T: Event>(_ eventType: T.Type) {
+        listeners.removeValue(forKey: T.eventType)
+    }
+    
+    public func removeAllListeners() {
+        listeners.removeAll()
+    }
+    
+    public func getListenerCount<T: Event>(_ eventType: T.Type) -> Int {
+        return listeners[T.eventType]?.count ?? 0
+    }
+    
+    public var totalListenerCount: Int {
+        return listeners.values.reduce(0) { $0 + $1.count }
+    }
+    
+    public func hasListeners<T: Event>(_ eventType: T.Type) -> Bool {
+        return getListenerCount(eventType) > 0
+    }
+    
+    public func emitSync<T: Event>(_ event: T) {
+        let eventType = T.eventType
+        guard let eventListeners = listeners[eventType] else { return }
+        
+        // Create a copy of the listeners list to avoid concurrent modification
+        let listenersCopy = Array(eventListeners.values)
+        
+        for listener in listenersCopy {
+            if let callbackListener = listener as? CallbackEventListener<T> {
+                callbackListener.onEvent(event)
+            }
+        }
+    }
+    
+    public func emitSyncWithFactory<T: Event>(_ eventFactory: () -> T) {
+        let event = eventFactory()
+        emitSync(event)
+    }
+    
+    public func emitAsync<T: Event>(_ event: T) {
+        eventQueue.async { [weak self] in
+            self?.emitSync(event)
+        }
+    }
+    
+    public func emitAsyncWithFactory<T: Event>(_ eventFactory: @escaping () -> T) {
+        eventQueue.async { [weak self] in
+            let event = eventFactory()
+            self?.emitSync(event)
+        }
+    }
+    
+    public func disposeEventEmitter() {
+        listeners.removeAll()
+    }
+}
+
+/// Extension methods for easier event listener registration
+public extension EventEmitter {
+    /// Convenience method to add a callback listener using a function
+    func on<T: Event>(_ callback: @escaping (T) -> Void) -> Int {
+        return addCallbackListener(callback)
+    }
+    
+    /// Convenience method to add a one-time listener that removes itself after firing
+    func once<T: Event>(_ callback: @escaping (T) -> Void) -> Int {
+        var listenerId: Int = 0
+        listenerId = addCallbackListener { [weak self] event in
+            self?.removeListener(listenerId)
+            callback(event)
+        }
+        return listenerId
+    }
+    
+    /// Remove a listener (alias for removeListener)
+    func off(_ listenerId: Int) -> Bool {
+        return removeListener(listenerId)
+    }
+}

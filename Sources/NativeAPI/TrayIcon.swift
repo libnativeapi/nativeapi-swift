@@ -1,27 +1,6 @@
 import CNativeAPI
 import Foundation
 
-/// Tray icon clicked event
-public struct TrayIconClickedEvent {
-    public let trayIconId: Int
-    public let button: String
-}
-
-/// Tray icon right-clicked event
-public struct TrayIconRightClickedEvent {
-    public let trayIconId: Int
-}
-
-/// Tray icon double-clicked event
-public struct TrayIconDoubleClickedEvent {
-    public let trayIconId: Int
-}
-
-/// Tray icon event callback types
-public typealias TrayIconClickHandler = (TrayIcon, TrayIconClickedEvent) -> Void
-public typealias TrayIconRightClickHandler = (TrayIcon, TrayIconRightClickedEvent) -> Void
-public typealias TrayIconDoubleClickHandler = (TrayIcon, TrayIconDoubleClickedEvent) -> Void
-
 /// TrayIcon represents a system tray icon (notification area icon).
 ///
 /// This class provides a cross-platform interface for creating and managing
@@ -40,85 +19,198 @@ public typealias TrayIconDoubleClickHandler = (TrayIcon, TrayIconDoubleClickedEv
 /// ```swift
 /// // Create a tray icon
 /// let trayIcon = TrayIcon()
-/// trayIcon.setIcon("path/to/icon.png")
-/// trayIcon.setTooltip("My Application")
+/// trayIcon.icon = Image.fromFile("path/to/icon.png")
+/// trayIcon.tooltip = "My Application"
 ///
 /// // Set up event listeners
 /// trayIcon.onClicked { event in
-///     // Handle click events based on button
-///     if event.button == "left" {
-///         // Handle left click - show/hide main window
-///         if mainWindow.isVisible {
-///             mainWindow.hide()
-///         } else {
-///             mainWindow.show()
-///         }
-///     }
+///     // Handle click events
+///     print("Tray icon clicked")
 /// }
 ///
 /// trayIcon.onRightClicked { event in
 ///     // Handle right click - show context menu
-///     trayIcon.showContextMenu()
+///     trayIcon.openContextMenu()
 /// }
 ///
 /// // Set up a context menu
 /// let menu = Menu()
-/// let exitItem = menu.createItem("Exit")
+/// let exitItem = MenuItem("Exit")
 /// menu.addItem(exitItem)
-/// trayIcon.setContextMenu(menu)
+/// trayIcon.contextMenu = menu
 ///
 /// // Show the tray icon
-/// _ = trayIcon.show()
+/// trayIcon.isVisible = true
 /// ```
-public class TrayIcon {
-    private var cTrayIcon: native_tray_icon_t?
-    private var contextMenu: Menu?
+public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
+    public typealias NativeHandleType = native_tray_icon_t
+    
+    public let nativeHandle: native_tray_icon_t
     private var eventListeners: [Int32: Any] = [:]
 
     /// Unique identifier for this tray icon
     public var id: Int {
-        guard let cTrayIcon = cTrayIcon else { return 0 }
-        return Int(native_tray_icon_get_id(cTrayIcon))
+        return Int(native_tray_icon_get_id(nativeHandle))
+    }
+
+    /// Default constructor for TrayIcon.
+    ///
+    /// Creates a new tray icon instance with default settings.
+    /// The icon will not be visible until isVisible is set to true.
+    public override init() {
+        guard let nativeHandle = native_tray_icon_create() else {
+            fatalError("Failed to create tray icon")
+        }
+        self.nativeHandle = nativeHandle
+        super.init()
+        setupEventListeners()
+    }
+
+    /// Constructor that wraps an existing platform-specific tray icon.
+    ///
+    /// This constructor is typically used internally by the TrayManager
+    /// to wrap existing system tray icons.
+    ///
+    /// - Parameter nativeHandle: Pointer to the platform-specific tray icon object
+    internal init?(nativeHandle: native_tray_icon_t?) {
+        guard let nativeHandle = nativeHandle else { return nil }
+        self.nativeHandle = nativeHandle
+        super.init()
+        setupEventListeners()
+    }
+    
+    /// Constructor that wraps an existing native platform object.
+    ///
+    /// This constructor is typically used internally by the TrayManager
+    /// to wrap existing system tray icons.
+    ///
+    /// - Parameter tray: Pointer to the platform-specific tray icon object
+    public init?(tray: UnsafeMutableRawPointer?) {
+        guard let tray = tray else { return nil }
+        guard let nativeHandle = native_tray_icon_create_from_native(tray) else { return nil }
+        self.nativeHandle = nativeHandle
+        super.init()
+        setupEventListeners()
+    }
+    
+    private func setupEventListeners() {
+        // Register listeners for each event type with native callbacks
+        registerNativeListeners()
+    }
+    
+    private func registerNativeListeners() {
+        // Register clicked event
+        let clickedListenerId = native_tray_icon_add_listener(
+            nativeHandle,
+            NATIVE_TRAY_ICON_EVENT_CLICKED,
+            TrayIcon.clickedCallback,
+            Unmanaged.passUnretained(self).toOpaque()
+        )
+        if clickedListenerId >= 0 {
+            eventListeners[clickedListenerId] = "clicked"
+        }
+        
+        // Register right clicked event
+        let rightClickedListenerId = native_tray_icon_add_listener(
+            nativeHandle,
+            NATIVE_TRAY_ICON_EVENT_RIGHT_CLICKED,
+            TrayIcon.rightClickedCallback,
+            Unmanaged.passUnretained(self).toOpaque()
+        )
+        if rightClickedListenerId >= 0 {
+            eventListeners[rightClickedListenerId] = "rightClicked"
+        }
+        
+        // Register double clicked event
+        let doubleClickedListenerId = native_tray_icon_add_listener(
+            nativeHandle,
+            NATIVE_TRAY_ICON_EVENT_DOUBLE_CLICKED,
+            TrayIcon.doubleClickedCallback,
+            Unmanaged.passUnretained(self).toOpaque()
+        )
+        if doubleClickedListenerId >= 0 {
+            eventListeners[doubleClickedListenerId] = "doubleClicked"
+        }
+    }
+    
+    // Static callback functions for native events
+    private static let clickedCallback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
+        guard let userDataPtr = userDataPtr else { return }
+        let trayIcon = Unmanaged<TrayIcon>.fromOpaque(userDataPtr).takeUnretainedValue()
+        print("Tray icon clicked")
+        trayIcon.emitSync(TrayIconClickedEvent())
+    }
+    
+    private static let rightClickedCallback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
+        guard let userDataPtr = userDataPtr else { return }
+        let trayIcon = Unmanaged<TrayIcon>.fromOpaque(userDataPtr).takeUnretainedValue()
+        print("Tray icon right clicked")
+        trayIcon.emitSync(TrayIconRightClickedEvent())
+    }
+    
+    private static let doubleClickedCallback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
+        guard let userDataPtr = userDataPtr else { return }
+        let trayIcon = Unmanaged<TrayIcon>.fromOpaque(userDataPtr).takeUnretainedValue()
+        print("Tray icon double clicked")
+        trayIcon.emitSync(TrayIconDoubleClickedEvent())
     }
 
     /// The title text of this tray icon
-    public var title: String {
+    public var title: String? {
         get {
-            guard let cTrayIcon = cTrayIcon else { return "" }
-            var buffer = [CChar](repeating: 0, count: 256)
-            let length = native_tray_icon_get_title(cTrayIcon, &buffer, buffer.count)
-            if length >= 0 {
-                return String(cString: buffer, encoding: .utf8) ?? ""
+            guard let titlePtr = native_tray_icon_get_title(nativeHandle) else {
+                return nil
             }
-            return ""
+            let title = String(cString: titlePtr)
+            free_c_str(titlePtr)
+            return title
         }
         set {
-            guard let cTrayIcon = cTrayIcon else { return }
-            native_tray_icon_set_title(cTrayIcon, newValue)
+            native_tray_icon_set_title(nativeHandle, newValue)
         }
     }
 
     /// The tooltip text of this tray icon
-    public var tooltip: String {
+    public var tooltip: String? {
         get {
-            guard let cTrayIcon = cTrayIcon else { return "" }
-            var buffer = [CChar](repeating: 0, count: 256)
-            let length = native_tray_icon_get_tooltip(cTrayIcon, &buffer, buffer.count)
-            if length >= 0 {
-                return String(cString: buffer, encoding: .utf8) ?? ""
+            guard let tooltipPtr = native_tray_icon_get_tooltip(nativeHandle) else {
+                return nil
             }
-            return ""
+            let tooltip = String(cString: tooltipPtr)
+            free_c_str(tooltipPtr)
+            return tooltip
         }
         set {
-            guard let cTrayIcon = cTrayIcon else { return }
-            native_tray_icon_set_tooltip(cTrayIcon, newValue)
+            native_tray_icon_set_tooltip(nativeHandle, newValue)
         }
     }
 
-    /// Whether this tray icon is currently visible
-    public var isVisible: Bool {
-        guard let cTrayIcon = cTrayIcon else { return false }
-        return native_tray_icon_is_visible(cTrayIcon)
+    /// The icon image for the tray icon
+    public var icon: Image? {
+        get {
+            guard let iconHandle = native_tray_icon_get_icon(nativeHandle) else {
+                return nil
+            }
+            return Image(nativeHandle: iconHandle) { _ in
+                // Don't destroy the icon handle as it's owned by the tray icon
+            }
+        }
+        set {
+            native_tray_icon_set_icon(nativeHandle, newValue?.nativeHandle)
+        }
+    }
+
+    /// The context menu for the tray icon
+    public var contextMenu: Menu? {
+        get {
+            guard let menuHandle = native_tray_icon_get_context_menu(nativeHandle) else {
+                return nil
+            }
+            return Menu(nativeMenu: menuHandle)
+        }
+        set {
+            native_tray_icon_set_context_menu(nativeHandle, newValue?.nativeHandle)
+        }
     }
 
     /// The screen bounds of this tray icon
@@ -131,179 +223,22 @@ public class TrayIcon {
     /// - macOS: Precise bounds of the status item
     /// - Windows: Approximate location of the notification area
     /// - Linux: Depends on the desktop environment and system tray implementation
-    public var bounds: Rectangle {
-        guard let cTrayIcon = cTrayIcon else { return Rectangle(x: 0, y: 0, width: 0, height: 0) }
+    public var bounds: Rect? {
         var cRect = native_rectangle_t()
-        if native_tray_icon_get_bounds(cTrayIcon, &cRect) {
-            return Rectangle(x: cRect.x, y: cRect.y, width: cRect.width, height: cRect.height)
+        if native_tray_icon_get_bounds(nativeHandle, &cRect) {
+            return Rect(cRect)
         }
-        return Rectangle(x: 0, y: 0, width: 0, height: 0)
+        return nil
     }
 
-    /// Default constructor for TrayIcon.
-    ///
-    /// Creates a new tray icon instance with default settings.
-    /// The icon will not be visible until show() is called.
-    public init() {
-        cTrayIcon = native_tray_icon_create()
-    }
-
-    /// Constructor that wraps an existing platform-specific tray icon.
-    ///
-    /// This constructor is typically used internally by the TrayManager
-    /// to wrap existing system tray icons.
-    ///
-    /// - Parameter nativeHandle: Pointer to the platform-specific tray icon object
-    internal init?(nativeHandle: native_tray_icon_t?) {
-        guard let nativeHandle = nativeHandle else { return nil }
-        cTrayIcon = nativeHandle
-    }
-    
-    /// Constructor that wraps an existing native platform object.
-    ///
-    /// This constructor is typically used internally by the TrayManager
-    /// to wrap existing system tray icons.
-    ///
-    /// - Parameter tray: Pointer to the platform-specific tray icon object
-    public init?(tray: UnsafeMutableRawPointer?) {
-        guard let tray = tray else { return nil }
-        cTrayIcon = native_tray_icon_create_from_native(tray)
-        guard cTrayIcon != nil else { return nil }
-    }
-
-    /// Destructor for TrayIcon.
-    ///
-    /// Cleans up the tray icon and removes it from the system tray if visible.
-    /// Also releases any associated platform-specific resources.
-    deinit {
-        // Remove all event listeners before destroying
-        for (listenerId, contextPtr) in eventListeners {
-            if let cTrayIcon = cTrayIcon {
-                _ = native_tray_icon_remove_listener(cTrayIcon, listenerId)
-            }
-            // Clean up the allocated memory for event context
-            if let ptr = contextPtr as? UnsafeMutableRawPointer {
-                ptr.deallocate()
-            }
+    /// Whether this tray icon is currently visible
+    public var isVisible: Bool {
+        get {
+            return native_tray_icon_is_visible(nativeHandle)
         }
-        
-        if let cTrayIcon = cTrayIcon {
-            native_tray_icon_destroy(cTrayIcon)
+        set {
+            native_tray_icon_set_visible(nativeHandle, newValue)
         }
-    }
-
-    /// Set the icon image for the tray icon.
-    ///
-    /// The icon can be specified as either a file path or a base64-encoded
-    /// image string. Base64 strings should be prefixed with the data URI
-    /// scheme (e.g., "data:image/png;base64,iVBORw0KGgo...").
-    ///
-    /// - Parameter icon: File path to an icon image or base64-encoded image data
-    ///
-    /// Note: Supported formats depend on the platform:
-    /// - macOS: PNG, JPEG, GIF, TIFF, BMP
-    /// - Windows: ICO, PNG, BMP
-    /// - Linux: PNG, XPM, SVG (depends on desktop environment)
-    ///
-    /// Example:
-    /// ```swift
-    /// // Using file path
-    /// trayIcon.setIcon("/path/to/icon.png")
-    ///
-    /// // Using base64 data
-    /// trayIcon.setIcon("data:image/png;base64,iVBORw0KGgo...")
-    /// ```
-    public func setIcon(_ icon: String) {
-        guard let cTrayIcon = cTrayIcon else { return }
-        native_tray_icon_set_icon(cTrayIcon, icon)
-    }
-
-    /// Set the title text for the tray icon.
-    ///
-    /// On platforms that support it (primarily macOS), the title text
-    /// is displayed next to the icon in the status bar. On other platforms,
-    /// this may be used internally for identification purposes.
-    ///
-    /// - Parameter title: The title text to display
-    ///
-    /// Note: On Windows and most Linux desktop environments, tray icons
-    /// do not display title text directly.
-    public func setTitle(_ title: String) {
-        self.title = title
-    }
-
-    /// Set the tooltip text for the tray icon.
-    ///
-    /// The tooltip appears when the user hovers the mouse over the tray icon.
-    /// This is supported on all platforms and is useful for providing
-    /// additional context about the application's current state.
-    ///
-    /// - Parameter tooltip: The tooltip text to display on hover
-    ///
-    /// Example:
-    /// ```swift
-    /// trayIcon.setTooltip("MyApp - Status: Connected")
-    /// ```
-    public func setTooltip(_ tooltip: String) {
-        self.tooltip = tooltip
-    }
-
-    /// Set the context menu for the tray icon.
-    ///
-    /// The context menu is displayed when the user right-clicks (or equivalent
-    /// platform-specific action) on the tray icon. The menu provides the primary
-    /// interface for user interaction with the application.
-    ///
-    /// - Parameter menu: The Menu object containing the context menu items
-    ///
-    /// Note: The Menu object is retained internally, so the original menu
-    /// object's lifetime doesn't need to extend beyond this call.
-    ///
-    /// Example:
-    /// ```swift
-    /// let contextMenu = Menu()
-    /// contextMenu.addItem(contextMenu.createItem("Show Window"))
-    /// contextMenu.addSeparator()
-    /// contextMenu.addItem(contextMenu.createItem("Exit"))
-    /// trayIcon.setContextMenu(contextMenu)
-    /// ```
-    public func setContextMenu(_ menu: Menu) {
-        guard let cTrayIcon = cTrayIcon else { return }
-        native_tray_icon_set_context_menu(cTrayIcon, menu.nativeMenu)
-        contextMenu = menu
-    }
-    
-    /// Get the current context menu of the tray icon.
-    ///
-    /// - Returns: The current context Menu object, or nil if no menu is set
-    public func getContextMenu() -> Menu? {
-        return contextMenu
-    }
-
-    /// Show the tray icon in the system tray.
-    ///
-    /// Makes the tray icon visible in the system notification area.
-    /// If the icon is already visible, this method has no effect.
-    ///
-    /// - Returns: true if the icon was successfully shown, false otherwise
-    ///
-    /// Note: On some platforms, showing a tray icon may fail if the
-    /// system tray is not available or if there are too many icons.
-    public func show() -> Bool {
-        guard let cTrayIcon = cTrayIcon else { return false }
-        return native_tray_icon_show(cTrayIcon)
-    }
-
-    /// Hide the tray icon from the system tray.
-    ///
-    /// Removes the tray icon from the system notification area without
-    /// destroying the TrayIcon object. The icon can be shown again later
-    /// using show().
-    ///
-    /// - Returns: true if the icon was successfully hidden, false otherwise
-    public func hide() -> Bool {
-        guard let cTrayIcon = cTrayIcon else { return false }
-        return native_tray_icon_hide(cTrayIcon)
     }
 
     /// Programmatically display the context menu at a specified location.
@@ -312,252 +247,76 @@ public class TrayIcon {
     /// This allows for manually triggering the context menu through keyboard
     /// shortcuts, other UI events, or programmatic control.
     ///
-    /// - Parameter position: The position in screen coordinates where to show the menu
+    /// - Parameter at: The position in screen coordinates where to show the menu
     /// - Returns: true if the menu was successfully shown, false otherwise
     ///
-    /// Note: If no context menu has been set via setContextMenu(), this method
+    /// Note: If no context menu has been set via contextMenu, this method
     /// will return false. The coordinates are in screen/global coordinates,
     /// not relative to any window.
     ///
     /// Example:
     /// ```swift
     /// // Show context menu near the tray icon
-    /// let bounds = trayIcon.bounds
-    /// let position = Point(x: bounds.x, y: bounds.y + bounds.height)
-    /// trayIcon.showContextMenu(at: position)
+    /// if let bounds = trayIcon.bounds {
+    ///     let position = Point(x: bounds.x, y: bounds.y + bounds.height)
+    ///     trayIcon.openContextMenu(at: position)
+    /// }
     /// ```
-    public func showContextMenu(at position: Point) -> Bool {
-        guard let cTrayIcon = cTrayIcon else { return false }
-        return native_tray_icon_show_context_menu(cTrayIcon, position.x, position.y)
+    public func openContextMenu(at: Point? = nil) -> Bool {
+        if let at = at {
+            return native_tray_icon_open_context_menu_at(nativeHandle, at.x, at.y)
+        } else {
+            return native_tray_icon_open_context_menu(nativeHandle)
+        }
     }
 
-    /// Display the context menu at the tray icon's location.
-    ///
-    /// Shows the context menu at a default position near the tray icon.
-    /// This is a convenience method that automatically determines an appropriate
-    /// position based on the tray icon's current location.
-    ///
-    /// - Returns: true if the menu was successfully shown, false otherwise
-    ///
-    /// Note: The exact positioning behavior may vary by platform:
-    /// - macOS: Menu appears below the status item
-    /// - Windows: Menu appears near the notification area
-    /// - Linux: Menu appears at cursor position or near tray area
-    ///
-    /// Example:
-    /// ```swift
-    /// // Show context menu at default location
-    /// trayIcon.showContextMenu()
-    /// ```
-    public func showContextMenu() -> Bool {
-        guard let cTrayIcon = cTrayIcon else { return false }
-        return native_tray_icon_show_context_menu_default(cTrayIcon)
+    /// Close the context menu if it's currently showing.
+    public func closeContextMenu() {
+        native_tray_icon_close_context_menu(nativeHandle)
     }
 
     // MARK: - Event Handling
-    
-    /// Event handler closure types
-    public typealias TrayIconClickedHandler = (TrayIcon, TrayIconClickedEvent) -> Void
-    public typealias TrayIconRightClickedHandler = (TrayIcon, TrayIconRightClickedEvent) -> Void  
-    public typealias TrayIconDoubleClickedHandler = (TrayIcon, TrayIconDoubleClickedEvent) -> Void
 
     /// Add event listener for tray icon clicked event
     /// - Parameter handler: The event handler closure
     /// - Returns: Listener ID that can be used to remove the listener
     @discardableResult
-    public func onClicked(_ handler: @escaping TrayIconClickedHandler) -> Int32 {
-        guard let cTrayIcon = cTrayIcon else { return -1 }
-        
-        // Create a context struct to hold both the handler and self reference
-        struct EventContext {
-            let handler: TrayIconClickedHandler
-            let trayIcon: TrayIcon
-        }
-        
-        let contextPtr = UnsafeMutablePointer<EventContext>.allocate(capacity: 1)
-        contextPtr.initialize(to: EventContext(handler: handler, trayIcon: self))
-        
-        let callback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
-            guard let eventPtr = eventPtr, let userDataPtr = userDataPtr else { return }
-            let contextPtr = userDataPtr.assumingMemoryBound(to: EventContext.self)
-            let context = contextPtr.pointee
-            
-            let cEvent = eventPtr.withMemoryRebound(to: native_tray_icon_clicked_event_t.self, capacity: 1) { $0.pointee }
-            let button = withUnsafeBytes(of: cEvent.button) { bytes in
-                let data = Array(bytes)
-                if let nullIndex = data.firstIndex(of: 0) {
-                    return String(bytes: data[0..<nullIndex], encoding: .utf8) ?? ""
-                } else {
-                    return String(bytes: data, encoding: .utf8) ?? ""
-                }
-            }
-            
-            let swiftEvent = TrayIconClickedEvent(
-                trayIconId: Int(cEvent.tray_icon_id),
-                button: button
-            )
-            context.handler(context.trayIcon, swiftEvent)
-        }
-        
-        let listenerId = native_tray_icon_add_listener(
-            cTrayIcon,
-            NATIVE_TRAY_ICON_EVENT_CLICKED,
-            callback,
-            contextPtr
-        )
-        
-        if listenerId >= 0 {
-            eventListeners[listenerId] = contextPtr
-        } else {
-            contextPtr.deinitialize(count: 1)
-            contextPtr.deallocate()
-        }
-        
-        return listenerId
+    public func onClicked(_ handler: @escaping (TrayIconClickedEvent) -> Void) -> Int {
+        return addCallbackListener(handler)
     }
 
     /// Add event listener for tray icon right clicked event
     /// - Parameter handler: The event handler closure
     /// - Returns: Listener ID that can be used to remove the listener
     @discardableResult
-    public func onRightClicked(_ handler: @escaping TrayIconRightClickedHandler) -> Int32 {
-        guard let cTrayIcon = cTrayIcon else { return -1 }
-        
-        // Create a context struct to hold both the handler and self reference
-        struct EventContext {
-            let handler: TrayIconRightClickedHandler
-            let trayIcon: TrayIcon
-        }
-        
-        let contextPtr = UnsafeMutablePointer<EventContext>.allocate(capacity: 1)
-        contextPtr.initialize(to: EventContext(handler: handler, trayIcon: self))
-        
-        let callback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
-            guard let eventPtr = eventPtr, let userDataPtr = userDataPtr else { return }
-            let contextPtr = userDataPtr.assumingMemoryBound(to: EventContext.self)
-            let context = contextPtr.pointee
-            
-            let cEvent = eventPtr.withMemoryRebound(to: native_tray_icon_right_clicked_event_t.self, capacity: 1) { $0.pointee }
-            let swiftEvent = TrayIconRightClickedEvent(
-                trayIconId: Int(cEvent.tray_icon_id)
-            )
-            context.handler(context.trayIcon, swiftEvent)
-        }
-        
-        let listenerId = native_tray_icon_add_listener(
-            cTrayIcon,
-            NATIVE_TRAY_ICON_EVENT_RIGHT_CLICKED,
-            callback,
-            contextPtr
-        )
-        
-        if listenerId >= 0 {
-            eventListeners[listenerId] = contextPtr
-        } else {
-            contextPtr.deinitialize(count: 1)
-            contextPtr.deallocate()
-        }
-        
-        return listenerId
+    public func onRightClicked(_ handler: @escaping (TrayIconRightClickedEvent) -> Void) -> Int {
+        return addCallbackListener(handler)
     }
 
     /// Add event listener for tray icon double clicked event
     /// - Parameter handler: The event handler closure
     /// - Returns: Listener ID that can be used to remove the listener
     @discardableResult
-    public func onDoubleClicked(_ handler: @escaping TrayIconDoubleClickedHandler) -> Int32 {
-        guard let cTrayIcon = cTrayIcon else { return -1 }
-        
-        // Create a context struct to hold both the handler and self reference
-        struct EventContext {
-            let handler: TrayIconDoubleClickedHandler
-            let trayIcon: TrayIcon
-        }
-        
-        let contextPtr = UnsafeMutablePointer<EventContext>.allocate(capacity: 1)
-        contextPtr.initialize(to: EventContext(handler: handler, trayIcon: self))
-        
-        let callback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
-            guard let eventPtr = eventPtr, let userDataPtr = userDataPtr else { return }
-            let contextPtr = userDataPtr.assumingMemoryBound(to: EventContext.self)
-            let context = contextPtr.pointee
-            
-            let cEvent = eventPtr.withMemoryRebound(to: native_tray_icon_double_clicked_event_t.self, capacity: 1) { $0.pointee }
-            let swiftEvent = TrayIconDoubleClickedEvent(
-                trayIconId: Int(cEvent.tray_icon_id)
-            )
-            context.handler(context.trayIcon, swiftEvent)
-        }
-        
-        let listenerId = native_tray_icon_add_listener(
-            cTrayIcon,
-            NATIVE_TRAY_ICON_EVENT_DOUBLE_CLICKED,
-            callback,
-            contextPtr
-        )
-        
-        if listenerId >= 0 {
-            eventListeners[listenerId] = contextPtr
-        } else {
-            contextPtr.deinitialize(count: 1)
-            contextPtr.deallocate()
-        }
-        
-        return listenerId
+    public func onDoubleClicked(_ handler: @escaping (TrayIconDoubleClickedEvent) -> Void) -> Int {
+        return addCallbackListener(handler)
     }
 
-    /// Remove event listener
-    /// - Parameter listenerId: The listener ID returned by event registration
-    /// - Returns: true if removed successfully, false otherwise
-    @discardableResult
-    public func removeListener(_ listenerId: Int32) -> Bool {
-        guard let cTrayIcon = cTrayIcon else { return false }
+    public func dispose() {
+        // Remove native listeners
+        for (listenerId, _) in eventListeners {
+            native_tray_icon_remove_listener(nativeHandle, listenerId)
+        }
+        eventListeners.removeAll()
         
-        let success = native_tray_icon_remove_listener(cTrayIcon, listenerId)
-        
-        if success, let contextPtr = eventListeners.removeValue(forKey: listenerId) {
-            // Clean up the allocated memory for event context
-            if let ptr = contextPtr as? UnsafeMutableRawPointer {
-                ptr.deallocate()
-            }
+        // Dispose context menu if it exists
+        if let contextMenu = contextMenu {
+            contextMenu.dispose()
         }
         
-        return success
-    }
-
-    // MARK: - Convenience Methods
-    
-    /// Add a convenient left click handler (filters clicked events for left button only)
-    /// - Parameter handler: The event handler closure
-    /// - Returns: Listener ID that can be used to remove the listener
-    @discardableResult
-    public func onLeftClick(_ handler: @escaping (TrayIcon, TrayIconClickedEvent) -> Void) -> Int32 {
-        return onClicked { trayIcon, event in
-            if event.button == "left" {
-                handler(trayIcon, event)
-            }
-        }
-    }
-    
-    /// Add a convenient right click handler (alias for onRightClicked)
-    /// - Parameter handler: The event handler closure
-    /// - Returns: Listener ID that can be used to remove the listener
-    @discardableResult
-    public func onRightClick(_ handler: @escaping (TrayIcon, TrayIconRightClickedEvent) -> Void) -> Int32 {
-        return onRightClicked(handler)
-    }
-    
-    /// Add a convenient double click handler (alias for onDoubleClicked)
-    /// - Parameter handler: The event handler closure
-    /// - Returns: Listener ID that can be used to remove the listener
-    @discardableResult
-    public func onDoubleClick(_ handler: @escaping (TrayIcon, TrayIconDoubleClickedEvent) -> Void) -> Int32 {
-        return onDoubleClicked(handler)
-    }
-
-    /// Get the native tray icon handle (for internal use)
-    internal var nativeHandle: native_tray_icon_t? {
-        return cTrayIcon
+        // Dispose event emitter
+        disposeEventEmitter()
+        
+        // Destroy native handle
+        native_tray_icon_destroy(nativeHandle)
     }
 }
-

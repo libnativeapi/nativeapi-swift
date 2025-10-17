@@ -66,15 +66,21 @@ import NativeAPI
     // Add separator
     contextMenu.addSeparator()
 
-    // Add radio button group for view mode selection
+    // Add submenu for view modes
+    let viewModeItem = MenuItem("视图模式", type: .submenu)
+    let viewModeSubmenu = Menu()
+    
     let compactViewItem = MenuItem("紧凑视图", type: .radio)
-    contextMenu.addItem(compactViewItem)
+    viewModeSubmenu.addItem(compactViewItem)
 
     let normalViewItem = MenuItem("普通视图", type: .radio)
-    contextMenu.addItem(normalViewItem)
+    viewModeSubmenu.addItem(normalViewItem)
 
     let detailedViewItem = MenuItem("详细视图", type: .radio)
-    contextMenu.addItem(detailedViewItem)
+    viewModeSubmenu.addItem(detailedViewItem)
+    
+    viewModeItem.submenu = viewModeSubmenu
+    contextMenu.addItem(viewModeItem)
 
     // Add event handlers for radio buttons
     compactViewItem.onClicked { event in
@@ -87,6 +93,15 @@ import NativeAPI
 
     detailedViewItem.onClicked { event in
         print("🔘 视图模式: 详细视图")
+    }
+    
+    // Add event handlers for submenu events
+    viewModeItem.onSubmenuOpened { event in
+        print("📂 子菜单已打开 (MenuItem ID: \(event.menuItemId))")
+    }
+    
+    viewModeItem.onSubmenuClosed { event in
+        print("📂 子菜单已关闭 (MenuItem ID: \(event.menuItemId))")
     }
 
     // Add separator
@@ -103,9 +118,10 @@ import NativeAPI
     // Set the context menu for tray icon
     trayIcon.contextMenu = contextMenu
 
-    // Configure click handlers
+    // Configure tray icon event handlers
     trayIcon.onClicked { event in
         print("👆 托盘图标左键点击")
+        trayIcon.openContextMenu()
     }
 
     trayIcon.onRightClicked { event in
@@ -114,6 +130,15 @@ import NativeAPI
 
     trayIcon.onDoubleClicked { event in
         print("👆 托盘图标双击")
+    }
+    
+    // Configure menu event handlers
+    contextMenu.onOpened { event in
+        print("📋 菜单已打开 (Menu ID: \(event.menuId))")
+    }
+    
+    contextMenu.onClosed { event in
+        print("📋 菜单已关闭 (Menu ID: \(event.menuId))")
     }
 
     // Show the tray icon
@@ -189,7 +214,8 @@ import NativeAPI
     print("💡 功能测试:")
     print("   • 普通菜单项: 显示窗口、关于、设置")
     print("   • 复选框菜单项: 显示工具栏、自动保存")
-    print("   • 单选按钮组: 紧凑视图、普通视图、详细视图")
+    print("   • 子菜单: 视图模式 (包含单选按钮组)")
+    print("   • 事件监听: 托盘图标点击事件、菜单打开/关闭事件、子菜单事件")
     print("   • 退出: 关闭应用程序")
 
     // Create a minimal window to keep the app running

@@ -47,6 +47,11 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
     
     public let nativeHandle: native_tray_icon_t
     private var eventListeners: [Int32: Any] = [:]
+    
+    // Static map to track instances by their native handle address
+    // Note: Access is protected by instancesLock
+    private nonisolated(unsafe) static var instances: [Int: TrayIcon] = [:]
+    private static let instancesLock = NSLock()
 
     /// Unique identifier for this tray icon
     public var id: Int {
@@ -63,6 +68,13 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         }
         self.nativeHandle = nativeHandle
         super.init()
+        
+        // Store instance in static map using handle address as key
+        let handleAddress = Int(bitPattern: nativeHandle)
+        TrayIcon.instancesLock.lock()
+        TrayIcon.instances[handleAddress] = self
+        TrayIcon.instancesLock.unlock()
+        
         setupEventListeners()
     }
 
@@ -76,6 +88,13 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         guard let nativeHandle = nativeHandle else { return nil }
         self.nativeHandle = nativeHandle
         super.init()
+        
+        // Store instance in static map using handle address as key
+        let handleAddress = Int(bitPattern: nativeHandle)
+        TrayIcon.instancesLock.lock()
+        TrayIcon.instances[handleAddress] = self
+        TrayIcon.instancesLock.unlock()
+        
         setupEventListeners()
     }
     
@@ -90,6 +109,13 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         guard let nativeHandle = native_tray_icon_create_from_native(tray) else { return nil }
         self.nativeHandle = nativeHandle
         super.init()
+        
+        // Store instance in static map using handle address as key
+        let handleAddress = Int(bitPattern: nativeHandle)
+        TrayIcon.instancesLock.lock()
+        TrayIcon.instances[handleAddress] = self
+        TrayIcon.instancesLock.unlock()
+        
         setupEventListeners()
     }
     
@@ -104,7 +130,7 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
             nativeHandle,
             NATIVE_TRAY_ICON_EVENT_CLICKED,
             TrayIcon.clickedCallback,
-            Unmanaged.passUnretained(self).toOpaque()
+            nativeHandle
         )
         if clickedListenerId >= 0 {
             eventListeners[clickedListenerId] = "clicked"
@@ -115,7 +141,7 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
             nativeHandle,
             NATIVE_TRAY_ICON_EVENT_RIGHT_CLICKED,
             TrayIcon.rightClickedCallback,
-            Unmanaged.passUnretained(self).toOpaque()
+            nativeHandle
         )
         if rightClickedListenerId >= 0 {
             eventListeners[rightClickedListenerId] = "rightClicked"
@@ -126,7 +152,7 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
             nativeHandle,
             NATIVE_TRAY_ICON_EVENT_DOUBLE_CLICKED,
             TrayIcon.doubleClickedCallback,
-            Unmanaged.passUnretained(self).toOpaque()
+            nativeHandle
         )
         if doubleClickedListenerId >= 0 {
             eventListeners[doubleClickedListenerId] = "doubleClicked"
@@ -136,23 +162,47 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
     // Static callback functions for native events
     private static let clickedCallback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
         guard let userDataPtr = userDataPtr else { return }
-        let trayIcon = Unmanaged<TrayIcon>.fromOpaque(userDataPtr).takeUnretainedValue()
+        let handleAddress = Int(bitPattern: userDataPtr)
+        
+        instancesLock.lock()
+        guard let instance = instances[handleAddress] else {
+            instancesLock.unlock()
+            return
+        }
+        instancesLock.unlock()
+        
         print("Tray icon clicked")
-        trayIcon.emitSync(TrayIconClickedEvent())
+        instance.emitSync(TrayIconClickedEvent())
     }
     
     private static let rightClickedCallback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
         guard let userDataPtr = userDataPtr else { return }
-        let trayIcon = Unmanaged<TrayIcon>.fromOpaque(userDataPtr).takeUnretainedValue()
+        let handleAddress = Int(bitPattern: userDataPtr)
+        
+        instancesLock.lock()
+        guard let instance = instances[handleAddress] else {
+            instancesLock.unlock()
+            return
+        }
+        instancesLock.unlock()
+        
         print("Tray icon right clicked")
-        trayIcon.emitSync(TrayIconRightClickedEvent())
+        instance.emitSync(TrayIconRightClickedEvent())
     }
     
     private static let doubleClickedCallback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
         guard let userDataPtr = userDataPtr else { return }
-        let trayIcon = Unmanaged<TrayIcon>.fromOpaque(userDataPtr).takeUnretainedValue()
+        let handleAddress = Int(bitPattern: userDataPtr)
+        
+        instancesLock.lock()
+        guard let instance = instances[handleAddress] else {
+            instancesLock.unlock()
+            return
+        }
+        instancesLock.unlock()
+        
         print("Tray icon double clicked")
-        trayIcon.emitSync(TrayIconDoubleClickedEvent())
+        instance.emitSync(TrayIconDoubleClickedEvent())
     }
 
     /// The title text of this tray icon
@@ -302,6 +352,12 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
     }
 
     public func dispose() {
+        // Remove instance from static map
+        let handleAddress = Int(bitPattern: nativeHandle)
+        TrayIcon.instancesLock.lock()
+        TrayIcon.instances.removeValue(forKey: handleAddress)
+        TrayIcon.instancesLock.unlock()
+        
         // Remove native listeners
         for (listenerId, _) in eventListeners {
             native_tray_icon_remove_listener(nativeHandle, listenerId)

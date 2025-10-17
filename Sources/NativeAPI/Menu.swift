@@ -73,6 +73,11 @@ public class MenuItem: BaseEventEmitter, NativeHandleWrapper {
     
     public let nativeHandle: native_menu_item_t
     private var eventListeners: [Int32: Any] = [:]
+    
+    // Static map to track instances by their native handle address
+    // Note: Access is protected by instancesLock
+    private nonisolated(unsafe) static var instances: [Int: MenuItem] = [:]
+    private static let instancesLock = NSLock()
 
     /// Unique identifier for this menu item.
     public var id: Int {
@@ -92,6 +97,12 @@ public class MenuItem: BaseEventEmitter, NativeHandleWrapper {
         self.nativeHandle = nativeItem
         super.init()
         
+        // Store instance in static map using handle address as key
+        let handleAddress = Int(bitPattern: nativeHandle)
+        MenuItem.instancesLock.lock()
+        MenuItem.instances[handleAddress] = self
+        MenuItem.instancesLock.unlock()
+        
         // Register event listeners
         setupEventListeners()
     }
@@ -108,6 +119,13 @@ public class MenuItem: BaseEventEmitter, NativeHandleWrapper {
     internal init(nativeItem: native_menu_item_t) {
         self.nativeHandle = nativeItem
         super.init()
+        
+        // Store instance in static map using handle address as key
+        let handleAddress = Int(bitPattern: nativeHandle)
+        MenuItem.instancesLock.lock()
+        MenuItem.instances[handleAddress] = self
+        MenuItem.instancesLock.unlock()
+        
         setupEventListeners()
     }
     
@@ -122,7 +140,7 @@ public class MenuItem: BaseEventEmitter, NativeHandleWrapper {
             nativeHandle,
             NATIVE_MENU_ITEM_EVENT_CLICKED,
             MenuItem.clickedCallback,
-            Unmanaged.passUnretained(self).toOpaque()
+            nativeHandle
         )
         if clickedListenerId >= 0 {
             eventListeners[clickedListenerId] = "clicked"
@@ -133,7 +151,7 @@ public class MenuItem: BaseEventEmitter, NativeHandleWrapper {
             nativeHandle,
             NATIVE_MENU_ITEM_EVENT_SUBMENU_OPENED,
             MenuItem.submenuOpenedCallback,
-            Unmanaged.passUnretained(self).toOpaque()
+            nativeHandle
         )
         if submenuOpenedListenerId >= 0 {
             eventListeners[submenuOpenedListenerId] = "submenuOpened"
@@ -144,7 +162,7 @@ public class MenuItem: BaseEventEmitter, NativeHandleWrapper {
             nativeHandle,
             NATIVE_MENU_ITEM_EVENT_SUBMENU_CLOSED,
             MenuItem.submenuClosedCallback,
-            Unmanaged.passUnretained(self).toOpaque()
+            nativeHandle
         )
         if submenuClosedListenerId >= 0 {
             eventListeners[submenuClosedListenerId] = "submenuClosed"
@@ -154,23 +172,47 @@ public class MenuItem: BaseEventEmitter, NativeHandleWrapper {
     // Static callback functions for native events
     private static let clickedCallback: native_menu_item_event_callback_t = { eventPtr, userDataPtr in
         guard let userDataPtr = userDataPtr else { return }
-        let menuItem = Unmanaged<MenuItem>.fromOpaque(userDataPtr).takeUnretainedValue()
-        print("Menu item clicked: \(menuItem.id)")
-        menuItem.emitSync(MenuItemClickedEvent(menuItem.id))
+        let handleAddress = Int(bitPattern: userDataPtr)
+        
+        instancesLock.lock()
+        guard let instance = instances[handleAddress] else {
+            instancesLock.unlock()
+            return
+        }
+        instancesLock.unlock()
+        
+        print("Menu item clicked: \(instance.id)")
+        instance.emitSync(MenuItemClickedEvent(instance.id))
     }
     
     private static let submenuOpenedCallback: native_menu_item_event_callback_t = { eventPtr, userDataPtr in
         guard let userDataPtr = userDataPtr else { return }
-        let menuItem = Unmanaged<MenuItem>.fromOpaque(userDataPtr).takeUnretainedValue()
-        print("Menu item submenu opened: \(menuItem.id)")
-        menuItem.emitSync(MenuItemSubmenuOpenedEvent(menuItem.id))
+        let handleAddress = Int(bitPattern: userDataPtr)
+        
+        instancesLock.lock()
+        guard let instance = instances[handleAddress] else {
+            instancesLock.unlock()
+            return
+        }
+        instancesLock.unlock()
+        
+        print("Menu item submenu opened: \(instance.id)")
+        instance.emitSync(MenuItemSubmenuOpenedEvent(instance.id))
     }
     
     private static let submenuClosedCallback: native_menu_item_event_callback_t = { eventPtr, userDataPtr in
         guard let userDataPtr = userDataPtr else { return }
-        let menuItem = Unmanaged<MenuItem>.fromOpaque(userDataPtr).takeUnretainedValue()
-        print("Menu item submenu closed: \(menuItem.id)")
-        menuItem.emitSync(MenuItemSubmenuClosedEvent(menuItem.id))
+        let handleAddress = Int(bitPattern: userDataPtr)
+        
+        instancesLock.lock()
+        guard let instance = instances[handleAddress] else {
+            instancesLock.unlock()
+            return
+        }
+        instancesLock.unlock()
+        
+        print("Menu item submenu closed: \(instance.id)")
+        instance.emitSync(MenuItemSubmenuClosedEvent(instance.id))
     }
 
     // MARK: - Properties
@@ -313,6 +355,12 @@ public class MenuItem: BaseEventEmitter, NativeHandleWrapper {
     }
 
     public func dispose() {
+        // Remove instance from static map
+        let handleAddress = Int(bitPattern: nativeHandle)
+        MenuItem.instancesLock.lock()
+        MenuItem.instances.removeValue(forKey: handleAddress)
+        MenuItem.instancesLock.unlock()
+        
         // Remove native listeners
         for (listenerId, _) in eventListeners {
             native_menu_item_remove_listener(nativeHandle, listenerId)
@@ -335,6 +383,11 @@ public class Menu: BaseEventEmitter, NativeHandleWrapper {
     
     public let nativeHandle: native_menu_t
     private var eventListeners: [Int32: Any] = [:]
+    
+    // Static map to track instances by their native handle address
+    // Note: Access is protected by instancesLock
+    private nonisolated(unsafe) static var instances: [Int: Menu] = [:]
+    private static let instancesLock = NSLock()
 
     /// Unique identifier for this menu.
     public var id: Int {
@@ -350,12 +403,26 @@ public class Menu: BaseEventEmitter, NativeHandleWrapper {
         }
         self.nativeHandle = nativeMenu
         super.init()
+        
+        // Store instance in static map using handle address as key
+        let handleAddress = Int(bitPattern: nativeHandle)
+        Menu.instancesLock.lock()
+        Menu.instances[handleAddress] = self
+        Menu.instancesLock.unlock()
+        
         setupEventListeners()
     }
 
     internal init(nativeMenu: native_menu_t) {
         self.nativeHandle = nativeMenu
         super.init()
+        
+        // Store instance in static map using handle address as key
+        let handleAddress = Int(bitPattern: nativeHandle)
+        Menu.instancesLock.lock()
+        Menu.instances[handleAddress] = self
+        Menu.instancesLock.unlock()
+        
         setupEventListeners()
     }
     
@@ -370,7 +437,7 @@ public class Menu: BaseEventEmitter, NativeHandleWrapper {
             nativeHandle,
             NATIVE_MENU_EVENT_OPENED,
             Menu.openedCallback,
-            Unmanaged.passUnretained(self).toOpaque()
+            nativeHandle
         )
         if openedListenerId >= 0 {
             eventListeners[openedListenerId] = "opened"
@@ -381,7 +448,7 @@ public class Menu: BaseEventEmitter, NativeHandleWrapper {
             nativeHandle,
             NATIVE_MENU_EVENT_CLOSED,
             Menu.closedCallback,
-            Unmanaged.passUnretained(self).toOpaque()
+            nativeHandle
         )
         if closedListenerId >= 0 {
             eventListeners[closedListenerId] = "closed"
@@ -391,16 +458,32 @@ public class Menu: BaseEventEmitter, NativeHandleWrapper {
     // Static callback functions for native events
     private static let openedCallback: native_menu_event_callback_t = { eventPtr, userDataPtr in
         guard let userDataPtr = userDataPtr else { return }
-        let menu = Unmanaged<Menu>.fromOpaque(userDataPtr).takeUnretainedValue()
-        print("Menu opened: \(menu.id)")
-        menu.emitSync(MenuOpenedEvent(menu.id))
+        let handleAddress = Int(bitPattern: userDataPtr)
+        
+        instancesLock.lock()
+        guard let instance = instances[handleAddress] else {
+            instancesLock.unlock()
+            return
+        }
+        instancesLock.unlock()
+        
+        print("Menu opened: \(instance.id)")
+        instance.emitSync(MenuOpenedEvent(instance.id))
     }
     
     private static let closedCallback: native_menu_event_callback_t = { eventPtr, userDataPtr in
         guard let userDataPtr = userDataPtr else { return }
-        let menu = Unmanaged<Menu>.fromOpaque(userDataPtr).takeUnretainedValue()
-        print("Menu closed: \(menu.id)")
-        menu.emitSync(MenuClosedEvent(menu.id))
+        let handleAddress = Int(bitPattern: userDataPtr)
+        
+        instancesLock.lock()
+        guard let instance = instances[handleAddress] else {
+            instancesLock.unlock()
+            return
+        }
+        instancesLock.unlock()
+        
+        print("Menu closed: \(instance.id)")
+        instance.emitSync(MenuClosedEvent(instance.id))
     }
 
     // MARK: - Menu Item Management
@@ -476,6 +559,12 @@ public class Menu: BaseEventEmitter, NativeHandleWrapper {
     }
 
     public func dispose() {
+        // Remove instance from static map
+        let handleAddress = Int(bitPattern: nativeHandle)
+        Menu.instancesLock.lock()
+        Menu.instances.removeValue(forKey: handleAddress)
+        Menu.instancesLock.unlock()
+        
         // Remove native listeners
         for (listenerId, _) in eventListeners {
             native_menu_remove_listener(nativeHandle, listenerId)

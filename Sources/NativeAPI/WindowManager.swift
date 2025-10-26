@@ -103,12 +103,6 @@ public class WindowManager: @unchecked Sendable {
         return native_window_manager_destroy(native_window_id_t(id))
     }
 
-    /// Initialize the window manager
-    @discardableResult
-    public func initialize() -> Bool {
-        return native_window_manager_initialize()
-    }
-
     /// Shutdown the window manager
     public func shutdown() {
         native_window_manager_shutdown()

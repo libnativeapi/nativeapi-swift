@@ -121,7 +121,7 @@ import NativeAPI
     // Configure tray icon event handlers
     trayIcon.onClicked { event in
         print("👆 托盘图标左键点击")
-        trayIcon.openContextMenu()
+        _ = trayIcon.openContextMenu()
     }
 
     trayIcon.onRightClicked { event in
@@ -182,20 +182,9 @@ import NativeAPI
 @MainActor func imageLoadingDemo() {
     print("\n=== Image Loading Demo ===")
     
-    // Try to load a system icon
-    if let systemIcon = Image.fromSystemIcon("NSApplicationIcon") {
-        print("✅ Loaded system icon: \(systemIcon.size.width)x\(systemIcon.size.height)")
-        print("   Format: \(systemIcon.format ?? "unknown")")
-    } else {
-        print("❌ Failed to load system icon")
-    }
-    
-    // Try to load from asset (if available)
-    if let assetIcon = Image.fromAsset("assets/icons/app_icon.png") {
-        print("✅ Loaded asset icon: \(assetIcon.size.width)x\(assetIcon.size.height)")
-    } else {
-        print("ℹ️ Asset icon not found (this is expected if not bundled)")
-    }
+    // Note: Image loading examples would go here
+    // You can use Image.fromFile("path/to/icon.png") or Image.fromBase64("data:...")
+    print("ℹ️ Image loading demo - use Image.fromFile() or Image.fromBase64()")
 }
 
 // MARK: - Main Application
@@ -228,11 +217,11 @@ import NativeAPI
         return
     }
 
-    // Don't hide the window immediately - let AppRunner handle the visibility
+    // Don't hide the window immediately - let Application handle the visibility
     // window.hide()
 
-    let exitCode = AppRunner.shared.run(with: window)
-    print("💡 应用程序退出，退出码: \(exitCode.rawValue)")
+    let exitCode = Application.shared.run(with: window)
+    print("💡 应用程序退出，退出码: \(exitCode)")
 }
 
 runApplication()

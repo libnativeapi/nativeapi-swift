@@ -4,18 +4,16 @@ import CNativeAPI
 /// A cross-platform image class for handling images across different platforms.
 ///
 /// This class provides a unified interface for working with images and supports
-/// multiple initialization methods including file paths, base64-encoded data,
-/// and system icons.
+/// multiple initialization methods including file paths and base64-encoded data.
 ///
 /// Features:
 /// - Load images from file paths
 /// - Load images from base64-encoded strings
-/// - Platform-specific system icon support
 /// - Automatic format detection and conversion
 /// - Memory-efficient internal representation
 ///
 /// All Image instances must be created using static factory methods
-/// (fromFile, fromBase64, fromSystemIcon).
+/// (fromFile, fromBase64).
 ///
 /// Example:
 /// ```swift
@@ -24,9 +22,6 @@ import CNativeAPI
 ///
 /// // Create image from base64 string
 /// let image2 = Image.fromBase64("data:image/png;base64,iVBORw0KGgo...")
-///
-/// // Create image from system icon
-/// let image3 = Image.fromSystemIcon("folder")
 ///
 /// // Use with TrayIcon
 /// trayIcon.icon = image1
@@ -77,84 +72,6 @@ public class Image: BaseNativeHandleWrapper<native_image_t> {
             return nil
         }
         return Image(nativeHandle: handle) { native_image_destroy($0) }
-    }
-    
-    /// Create an image from a platform-specific system icon.
-    ///
-    /// Loads a system icon using platform-specific icon names/identifiers.
-    ///
-    /// Returns nil if icon not found.
-    ///
-    /// Platform-specific icon names:
-    /// - macOS: "NSApplicationIcon", "NSFolder", "NSDocument", etc.
-    /// - Windows: "IDI_APPLICATION", "IDI_INFORMATION", "IDI_WARNING", etc.
-    /// - Linux: Depends on the desktop environment and icon theme
-    public static func fromSystemIcon(_ iconName: String) -> Image? {
-        guard let handle = native_image_from_system_icon(iconName) else {
-            return nil
-        }
-        return Image(nativeHandle: handle) { native_image_destroy($0) }
-    }
-    
-    /// Create an image from a Flutter asset.
-    ///
-    /// Loads an image from the Flutter assets bundle. This method automatically
-    /// resolves the correct asset path based on the current platform.
-    ///
-    /// The asset path is constructed differently for each platform:
-    /// - macOS: Located in App.framework/Resources/flutter_assets/
-    /// - Other platforms: Located in data/flutter_assets/ relative to executable
-    ///
-    /// Returns nil if the asset file is not found or loading failed.
-    ///
-    /// Example:
-    /// ```swift
-    /// // Load an image asset (assumes assets/icons/app_icon.png exists)
-    /// let appIcon = Image.fromAsset("assets/icons/app_icon.png")
-    /// if let appIcon = appIcon {
-    ///   trayIcon.icon = appIcon
-    /// }
-    ///
-    /// // Load a simple asset
-    /// let logo = Image.fromAsset("images/logo.svg")
-    /// ```
-    ///
-    /// Note: The asset must be included in your pubspec.yaml file:
-    /// ```yaml
-    /// flutter:
-    ///   assets:
-    ///     - assets/icons/
-    ///     - images/
-    /// ```
-    public static func fromAsset(_ name: String) -> Image? {
-        // Get the path to the current executable
-        let executablePath = Bundle.main.executablePath ?? ""
-        
-        // Default asset path for most platforms (Windows, Linux)
-        var assetPath = URL(fileURLWithPath: executablePath)
-            .deletingLastPathComponent()
-            .appendingPathComponent("data/flutter_assets")
-            .appendingPathComponent(name)
-            .path
-        
-        // macOS has a different bundle structure
-        #if os(macOS)
-        if executablePath.contains(".app") {
-            // On macOS, assets are located in the app bundle's framework resources
-            assetPath = URL(fileURLWithPath: executablePath)
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .appendingPathComponent("Frameworks")
-                .appendingPathComponent("App.framework")
-                .appendingPathComponent("Resources")
-                .appendingPathComponent("flutter_assets")
-                .appendingPathComponent(name)
-                .path
-        }
-        #endif
-        
-        // Load the image from the resolved asset path
-        return fromFile(assetPath)
     }
     
     /// Get the size of the image in pixels.

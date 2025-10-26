@@ -46,12 +46,24 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
     public typealias NativeHandleType = native_tray_icon_t
     
     public let nativeHandle: native_tray_icon_t
-    private var eventListeners: [Int32: Any] = [:]
+    
+    // Store listener IDs for cleanup
+    private var clickedListenerId: Int32?
+    private var rightClickedListenerId: Int32?
+    private var doubleClickedListenerId: Int32?
     
     // Static map to track instances by their native handle address
     // Note: Access is protected by instancesLock
     private nonisolated(unsafe) static var instances: [Int: TrayIcon] = [:]
     private static let instancesLock = NSLock()
+    
+    // Static callbacks for event handling
+    // Note: nonisolated(unsafe) is necessary because these callbacks are called from C/C++ code
+    // which may be running on any thread. The callbacks themselves acquire locks before accessing instances.
+    private nonisolated(unsafe) static var clickedCallback: native_tray_icon_event_callback_t?
+    private nonisolated(unsafe) static var rightClickedCallback: native_tray_icon_event_callback_t?
+    private nonisolated(unsafe) static var doubleClickedCallback: native_tray_icon_event_callback_t?
+    private nonisolated(unsafe) static var callbacksInitialized = false
 
     /// Unique identifier for this tray icon
     public var id: Int {
@@ -74,8 +86,6 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         TrayIcon.instancesLock.lock()
         TrayIcon.instances[handleAddress] = self
         TrayIcon.instancesLock.unlock()
-        
-        setupEventListeners()
     }
 
     /// Constructor that wraps an existing platform-specific tray icon.
@@ -94,8 +104,6 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         TrayIcon.instancesLock.lock()
         TrayIcon.instances[handleAddress] = self
         TrayIcon.instancesLock.unlock()
-        
-        setupEventListeners()
     }
     
     /// Constructor that wraps an existing native platform object.
@@ -115,94 +123,96 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         TrayIcon.instancesLock.lock()
         TrayIcon.instances[handleAddress] = self
         TrayIcon.instancesLock.unlock()
+    }
+    
+    override open func startEventListening() {
+        // Initialize callbacks once
+        if !TrayIcon.callbacksInitialized {
+            TrayIcon.clickedCallback = { eventPtr, userDataPtr in
+                guard let userDataPtr = userDataPtr else { return }
+                let handleAddress = Int(bitPattern: userDataPtr)
+                
+                TrayIcon.instancesLock.lock()
+                guard let instance = TrayIcon.instances[handleAddress] else {
+                    TrayIcon.instancesLock.unlock()
+                    return
+                }
+                TrayIcon.instancesLock.unlock()
+                
+                print("Tray icon clicked")
+                instance.emitSync(TrayIconClickedEvent())
+            }
+            
+            TrayIcon.rightClickedCallback = { eventPtr, userDataPtr in
+                guard let userDataPtr = userDataPtr else { return }
+                let handleAddress = Int(bitPattern: userDataPtr)
+                
+                TrayIcon.instancesLock.lock()
+                guard let instance = TrayIcon.instances[handleAddress] else {
+                    TrayIcon.instancesLock.unlock()
+                    return
+                }
+                TrayIcon.instancesLock.unlock()
+                
+                print("Tray icon right clicked")
+                instance.emitSync(TrayIconRightClickedEvent())
+            }
+            
+            TrayIcon.doubleClickedCallback = { eventPtr, userDataPtr in
+                guard let userDataPtr = userDataPtr else { return }
+                let handleAddress = Int(bitPattern: userDataPtr)
+                
+                TrayIcon.instancesLock.lock()
+                guard let instance = TrayIcon.instances[handleAddress] else {
+                    TrayIcon.instancesLock.unlock()
+                    return
+                }
+                TrayIcon.instancesLock.unlock()
+                
+                print("Tray icon double clicked")
+                instance.emitSync(TrayIconDoubleClickedEvent())
+            }
+            
+            TrayIcon.callbacksInitialized = true
+        }
         
-        setupEventListeners()
-    }
-    
-    private func setupEventListeners() {
-        // Register listeners for each event type with native callbacks
-        registerNativeListeners()
-    }
-    
-    private func registerNativeListeners() {
-        // Register clicked event
-        let clickedListenerId = native_tray_icon_add_listener(
+        // Register listeners for each event type with native callbacks and store IDs
+        clickedListenerId = native_tray_icon_add_listener(
             nativeHandle,
             NATIVE_TRAY_ICON_EVENT_CLICKED,
-            TrayIcon.clickedCallback,
+            TrayIcon.clickedCallback!,
             nativeHandle
         )
-        if clickedListenerId >= 0 {
-            eventListeners[clickedListenerId] = "clicked"
-        }
         
-        // Register right clicked event
-        let rightClickedListenerId = native_tray_icon_add_listener(
+        rightClickedListenerId = native_tray_icon_add_listener(
             nativeHandle,
             NATIVE_TRAY_ICON_EVENT_RIGHT_CLICKED,
-            TrayIcon.rightClickedCallback,
+            TrayIcon.rightClickedCallback!,
             nativeHandle
         )
-        if rightClickedListenerId >= 0 {
-            eventListeners[rightClickedListenerId] = "rightClicked"
-        }
         
-        // Register double clicked event
-        let doubleClickedListenerId = native_tray_icon_add_listener(
+        doubleClickedListenerId = native_tray_icon_add_listener(
             nativeHandle,
             NATIVE_TRAY_ICON_EVENT_DOUBLE_CLICKED,
-            TrayIcon.doubleClickedCallback,
+            TrayIcon.doubleClickedCallback!,
             nativeHandle
         )
-        if doubleClickedListenerId >= 0 {
-            eventListeners[doubleClickedListenerId] = "doubleClicked"
-        }
     }
     
-    // Static callback functions for native events
-    private static let clickedCallback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
-        guard let userDataPtr = userDataPtr else { return }
-        let handleAddress = Int(bitPattern: userDataPtr)
-        
-        instancesLock.lock()
-        guard let instance = instances[handleAddress] else {
-            instancesLock.unlock()
-            return
+    override open func stopEventListening() {
+        // Remove native listeners using stored IDs
+        if let listenerId = clickedListenerId {
+            native_tray_icon_remove_listener(nativeHandle, listenerId)
+            clickedListenerId = nil
         }
-        instancesLock.unlock()
-        
-        print("Tray icon clicked")
-        instance.emitSync(TrayIconClickedEvent())
-    }
-    
-    private static let rightClickedCallback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
-        guard let userDataPtr = userDataPtr else { return }
-        let handleAddress = Int(bitPattern: userDataPtr)
-        
-        instancesLock.lock()
-        guard let instance = instances[handleAddress] else {
-            instancesLock.unlock()
-            return
+        if let listenerId = rightClickedListenerId {
+            native_tray_icon_remove_listener(nativeHandle, listenerId)
+            rightClickedListenerId = nil
         }
-        instancesLock.unlock()
-        
-        print("Tray icon right clicked")
-        instance.emitSync(TrayIconRightClickedEvent())
-    }
-    
-    private static let doubleClickedCallback: native_tray_icon_event_callback_t = { eventPtr, userDataPtr in
-        guard let userDataPtr = userDataPtr else { return }
-        let handleAddress = Int(bitPattern: userDataPtr)
-        
-        instancesLock.lock()
-        guard let instance = instances[handleAddress] else {
-            instancesLock.unlock()
-            return
+        if let listenerId = doubleClickedListenerId {
+            native_tray_icon_remove_listener(nativeHandle, listenerId)
+            doubleClickedListenerId = nil
         }
-        instancesLock.unlock()
-        
-        print("Tray icon double clicked")
-        instance.emitSync(TrayIconDoubleClickedEvent())
     }
 
     /// The title text of this tray icon
@@ -297,27 +307,19 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
     /// This allows for manually triggering the context menu through keyboard
     /// shortcuts, other UI events, or programmatic control.
     ///
-    /// - Parameter at: The position in screen coordinates where to show the menu
+    /// - Parameter at: The position in screen coordinates where to show the menu (ignored - using default position)
     /// - Returns: true if the menu was successfully shown, false otherwise
     ///
-    /// Note: If no context menu has been set via contextMenu, this method
-    /// will return false. The coordinates are in screen/global coordinates,
-    /// not relative to any window.
+    /// Note: Position parameter is currently ignored. Menu is shown at default tray icon position.
     ///
     /// Example:
     /// ```swift
-    /// // Show context menu near the tray icon
-    /// if let bounds = trayIcon.bounds {
-    ///     let position = Point(x: bounds.x, y: bounds.y + bounds.height)
-    ///     trayIcon.openContextMenu(at: position)
-    /// }
+    /// // Show context menu
+    /// trayIcon.openContextMenu()
     /// ```
     public func openContextMenu(at: Point? = nil) -> Bool {
-        if let at = at {
-            return native_tray_icon_open_context_menu_at(nativeHandle, at.x, at.y)
-        } else {
-            return native_tray_icon_open_context_menu(nativeHandle)
-        }
+        // TODO: Implement position-specific context menu opening in C API
+        return native_tray_icon_open_context_menu(nativeHandle)
     }
 
     /// Close the context menu if it's currently showing.
@@ -358,18 +360,12 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         TrayIcon.instances.removeValue(forKey: handleAddress)
         TrayIcon.instancesLock.unlock()
         
-        // Remove native listeners
-        for (listenerId, _) in eventListeners {
-            native_tray_icon_remove_listener(nativeHandle, listenerId)
-        }
-        eventListeners.removeAll()
-        
         // Dispose context menu if it exists
         if let contextMenu = contextMenu {
             contextMenu.dispose()
         }
         
-        // Dispose event emitter
+        // Dispose event emitter (will call stopEventListening if needed)
         disposeEventEmitter()
         
         // Destroy native handle

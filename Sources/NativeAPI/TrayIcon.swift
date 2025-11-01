@@ -1,6 +1,55 @@
 import CNativeAPI
 import Foundation
 
+/// Defines how the context menu is triggered for a tray icon.
+///
+/// This enum specifies which mouse interactions should display the tray icon's
+/// context menu. The values align with tray icon event types for consistency.
+public enum ContextMenuTrigger: Int32, CaseIterable {
+    /// Context menu is not automatically triggered by mouse events.
+    ///
+    /// The application must call openContextMenu() explicitly to display the menu.
+    /// Use this when you want full control over when the menu appears.
+    case none = 0
+    
+    /// Context menu is triggered on TrayIconClickedEvent.
+    ///
+    /// Automatically opens the context menu when the tray icon is left-clicked.
+    /// This is common on some Linux desktop environments.
+    case clicked = 1
+    
+    /// Context menu is triggered on TrayIconRightClickedEvent.
+    ///
+    /// Automatically opens the context menu when the tray icon is right-clicked.
+    /// This follows the convention on Windows and most desktop environments.
+    case rightClicked = 2
+    
+    /// Context menu is triggered on TrayIconDoubleClickedEvent.
+    ///
+    /// Automatically opens the context menu when the tray icon is double-clicked.
+    /// Less common but useful for applications that use single-click for another action.
+    case doubleClicked = 3
+    
+    internal var nativeValue: native_context_menu_trigger_t {
+        switch self {
+        case .none: return NATIVE_CONTEXT_MENU_TRIGGER_NONE
+        case .clicked: return NATIVE_CONTEXT_MENU_TRIGGER_CLICKED
+        case .rightClicked: return NATIVE_CONTEXT_MENU_TRIGGER_RIGHT_CLICKED
+        case .doubleClicked: return NATIVE_CONTEXT_MENU_TRIGGER_DOUBLE_CLICKED
+        }
+    }
+    
+    internal init(nativeValue: native_context_menu_trigger_t) {
+        switch nativeValue {
+        case NATIVE_CONTEXT_MENU_TRIGGER_NONE: self = .none
+        case NATIVE_CONTEXT_MENU_TRIGGER_CLICKED: self = .clicked
+        case NATIVE_CONTEXT_MENU_TRIGGER_RIGHT_CLICKED: self = .rightClicked
+        case NATIVE_CONTEXT_MENU_TRIGGER_DOUBLE_CLICKED: self = .doubleClicked
+        default: self = .none
+        }
+    }
+}
+
 /// TrayIcon represents a system tray icon (notification area icon).
 ///
 /// This class provides a cross-platform interface for creating and managing
@@ -44,19 +93,19 @@ import Foundation
 /// ```
 public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
     public typealias NativeHandleType = native_tray_icon_t
-    
+
     public let nativeHandle: native_tray_icon_t
-    
+
     // Store listener IDs for cleanup
     private var clickedListenerId: Int32?
     private var rightClickedListenerId: Int32?
     private var doubleClickedListenerId: Int32?
-    
+
     // Static map to track instances by their native handle address
     // Note: Access is protected by instancesLock
     private nonisolated(unsafe) static var instances: [Int: TrayIcon] = [:]
     private static let instancesLock = NSLock()
-    
+
     // Static callbacks for event handling
     // Note: nonisolated(unsafe) is necessary because these callbacks are called from C/C++ code
     // which may be running on any thread. The callbacks themselves acquire locks before accessing instances.
@@ -80,7 +129,7 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         }
         self.nativeHandle = nativeHandle
         super.init()
-        
+
         // Store instance in static map using handle address as key
         let handleAddress = Int(bitPattern: nativeHandle)
         TrayIcon.instancesLock.lock()
@@ -98,14 +147,14 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         guard let nativeHandle = nativeHandle else { return nil }
         self.nativeHandle = nativeHandle
         super.init()
-        
+
         // Store instance in static map using handle address as key
         let handleAddress = Int(bitPattern: nativeHandle)
         TrayIcon.instancesLock.lock()
         TrayIcon.instances[handleAddress] = self
         TrayIcon.instancesLock.unlock()
     }
-    
+
     /// Constructor that wraps an existing native platform object.
     ///
     /// This constructor is typically used internally by the TrayManager
@@ -117,65 +166,65 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         guard let nativeHandle = native_tray_icon_create_from_native(tray) else { return nil }
         self.nativeHandle = nativeHandle
         super.init()
-        
+
         // Store instance in static map using handle address as key
         let handleAddress = Int(bitPattern: nativeHandle)
         TrayIcon.instancesLock.lock()
         TrayIcon.instances[handleAddress] = self
         TrayIcon.instancesLock.unlock()
     }
-    
+
     override open func startEventListening() {
         // Initialize callbacks once
         if !TrayIcon.callbacksInitialized {
             TrayIcon.clickedCallback = { eventPtr, userDataPtr in
                 guard let userDataPtr = userDataPtr else { return }
                 let handleAddress = Int(bitPattern: userDataPtr)
-                
+
                 TrayIcon.instancesLock.lock()
                 guard let instance = TrayIcon.instances[handleAddress] else {
                     TrayIcon.instancesLock.unlock()
                     return
                 }
                 TrayIcon.instancesLock.unlock()
-                
+
                 print("Tray icon clicked")
                 instance.emitSync(TrayIconClickedEvent())
             }
-            
+
             TrayIcon.rightClickedCallback = { eventPtr, userDataPtr in
                 guard let userDataPtr = userDataPtr else { return }
                 let handleAddress = Int(bitPattern: userDataPtr)
-                
+
                 TrayIcon.instancesLock.lock()
                 guard let instance = TrayIcon.instances[handleAddress] else {
                     TrayIcon.instancesLock.unlock()
                     return
                 }
                 TrayIcon.instancesLock.unlock()
-                
+
                 print("Tray icon right clicked")
                 instance.emitSync(TrayIconRightClickedEvent())
             }
-            
+
             TrayIcon.doubleClickedCallback = { eventPtr, userDataPtr in
                 guard let userDataPtr = userDataPtr else { return }
                 let handleAddress = Int(bitPattern: userDataPtr)
-                
+
                 TrayIcon.instancesLock.lock()
                 guard let instance = TrayIcon.instances[handleAddress] else {
                     TrayIcon.instancesLock.unlock()
                     return
                 }
                 TrayIcon.instancesLock.unlock()
-                
+
                 print("Tray icon double clicked")
                 instance.emitSync(TrayIconDoubleClickedEvent())
             }
-            
+
             TrayIcon.callbacksInitialized = true
         }
-        
+
         // Register listeners for each event type with native callbacks and store IDs
         clickedListenerId = native_tray_icon_add_listener(
             nativeHandle,
@@ -183,14 +232,14 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
             TrayIcon.clickedCallback!,
             nativeHandle
         )
-        
+
         rightClickedListenerId = native_tray_icon_add_listener(
             nativeHandle,
             NATIVE_TRAY_ICON_EVENT_RIGHT_CLICKED,
             TrayIcon.rightClickedCallback!,
             nativeHandle
         )
-        
+
         doubleClickedListenerId = native_tray_icon_add_listener(
             nativeHandle,
             NATIVE_TRAY_ICON_EVENT_DOUBLE_CLICKED,
@@ -198,7 +247,7 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
             nativeHandle
         )
     }
-    
+
     override open func stopEventListening() {
         // Remove native listeners using stored IDs
         if let listenerId = clickedListenerId {
@@ -273,6 +322,44 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         }
     }
 
+    /// Get or set the context menu trigger behavior.
+    ///
+    /// Determines which mouse interactions will automatically display the
+    /// context menu. By default, the trigger is set to None, requiring
+    /// explicit control via openContextMenu() or by setting a trigger mode.
+    ///
+    /// - Note: When set to `.none` (default), the context menu
+    ///         will only appear when openContextMenu() is called explicitly, giving
+    ///         you full control over menu display through event listeners.
+    ///
+    /// Example:
+    /// ```swift
+    /// // Right click shows menu (common on Windows/Linux)
+    /// trayIcon.contextMenuTrigger = .rightClicked
+    ///
+    /// // Left click shows menu (common on some Linux environments and macOS)
+    /// trayIcon.contextMenuTrigger = .clicked
+    ///
+    /// // Double click shows menu
+    /// trayIcon.contextMenuTrigger = .doubleClicked
+    ///
+    /// // Manual control (default) - handle events yourself
+    /// trayIcon.contextMenuTrigger = .none
+    /// trayIcon.onRightClicked { _ in
+    ///   // Custom logic before showing menu
+    ///   trayIcon.openContextMenu()
+    /// }
+    /// ```
+    public var contextMenuTrigger: ContextMenuTrigger {
+        get {
+            let nativeTrigger = native_tray_icon_get_context_menu_trigger(nativeHandle)
+            return ContextMenuTrigger(nativeValue: nativeTrigger)
+        }
+        set {
+            native_tray_icon_set_context_menu_trigger(nativeHandle, newValue.nativeValue)
+        }
+    }
+
     /// The screen bounds of this tray icon
     ///
     /// Returns the bounding rectangle of the tray icon in screen coordinates.
@@ -323,8 +410,23 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
     }
 
     /// Close the context menu if it's currently showing.
-    public func closeContextMenu() {
-        native_tray_icon_close_context_menu(nativeHandle)
+    ///
+    /// Closes the tray icon's context menu if it is currently visible.
+    /// This allows for programmatic dismissal of the menu.
+    ///
+    /// - Returns: true if the menu was successfully closed or wasn't visible, false on error
+    ///
+    /// - Note: This method is useful for keyboard shortcuts or programmatic control
+    ///         that needs to dismiss the context menu without user interaction.
+    ///
+    /// Example:
+    /// ```swift
+    /// // Close the context menu programmatically
+    /// trayIcon.closeContextMenu()
+    /// ```
+    @discardableResult
+    public func closeContextMenu() -> Bool {
+        return native_tray_icon_close_context_menu(nativeHandle)
     }
 
     // MARK: - Event Handling
@@ -359,15 +461,15 @@ public class TrayIcon: BaseEventEmitter, NativeHandleWrapper {
         TrayIcon.instancesLock.lock()
         TrayIcon.instances.removeValue(forKey: handleAddress)
         TrayIcon.instancesLock.unlock()
-        
+
         // Dispose context menu if it exists
         if let contextMenu = contextMenu {
             contextMenu.dispose()
         }
-        
+
         // Dispose event emitter (will call stopEventListening if needed)
         disposeEventEmitter()
-        
+
         // Destroy native handle
         native_tray_icon_destroy(nativeHandle)
     }

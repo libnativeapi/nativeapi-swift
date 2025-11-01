@@ -26,8 +26,11 @@ let package = Package(
             exclude: {
                 var excluded = [
                     "examples",
+                    "src/platform/android",
+                    "src/platform/ios",
                     "src/platform/linux",
                     "src/platform/macos",
+                    "src/platform/ohos",
                     "src/platform/windows",
                 ]
                 #if os(Linux)

@@ -1,0 +1,5 @@
+# ExampleApp
+
+```sh
+swift run
+```

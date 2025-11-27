@@ -365,11 +365,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Related Projects
 
-- [nativeapi](https://github.com/leanflutter/nativeapi) - Core C++ library
-- [nativeapi-dart](https://github.com/leanflutter/nativeapi-dart) - Dart bindings
+- [nativeapi](https://github.com/libnativeapi/nativeapi) - Core C++ library
+- [nativeapi-dart](https://github.com/libnativeapi/nativeapi-flutter) - Dart bindings
 
 ## Support
 
 - [Issues](https://github.com/leanflutter/nativeapi-swift/issues) - Bug reports and feature requests
-- [Discussions](https://github.com/leanflutter/nativeapi-swift/discussions) - Questions and community support
+- [Discussions](https://github.com/libnativeapi/nativeapi-swift/discussions) - Questions and community support
 - [Documentation](https://github.com/leanflutter/nativeapi-swift/wiki) - Detailed guides and tutorials

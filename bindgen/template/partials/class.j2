@@ -1,0 +1,105 @@
+{#- Class wrapper template for Swift -#}
+{%- macro render_method_call(method) -%}
+{%- if method.return_bridge == 'string' %}
+        guard let cString = {{ method.call_symbol }}(
+{%- if method.needs_instance_handle %}
+            self.handle{% if method.call_args|length > 0 %},{% endif %}
+{%- endif %}
+{%- for arg in method.call_args %}
+            {{ arg }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+        ) else { return "" }
+        let value = String(cString: cString)
+        {{ method.string_free_symbol }}(cString)
+        return value
+{%- elif method.return_bridge == 'point' %}
+        return Point({{ method.call_symbol }}(
+{%- if method.needs_instance_handle %}
+            self.handle{% if method.call_args|length > 0 %},{% endif %}
+{%- endif %}
+{%- for arg in method.call_args %}
+            {{ arg }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+        ))
+{%- elif method.return_bridge == 'size' %}
+        return Size({{ method.call_symbol }}(
+{%- if method.needs_instance_handle %}
+            self.handle{% if method.call_args|length > 0 %},{% endif %}
+{%- endif %}
+{%- for arg in method.call_args %}
+            {{ arg }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+        ))
+{%- elif method.return_bridge == 'rect' %}
+        return Rect({{ method.call_symbol }}(
+{%- if method.needs_instance_handle %}
+            self.handle{% if method.call_args|length > 0 %},{% endif %}
+{%- endif %}
+{%- for arg in method.call_args %}
+            {{ arg }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+        ))
+{%- elif method.return_bridge == 'void' %}
+        {{ method.call_symbol }}(
+{%- if method.needs_instance_handle %}
+            self.handle{% if method.call_args|length > 0 %},{% endif %}
+{%- endif %}
+{%- for arg in method.call_args %}
+            {{ arg }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+        )
+{%- else %}
+        return {{ method.call_symbol }}(
+{%- if method.needs_instance_handle %}
+            self.handle{% if method.call_args|length > 0 %},{% endif %}
+{%- endif %}
+{%- for arg in method.call_args %}
+            {{ arg }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+        )
+{%- endif %}
+{%- endmacro -%}
+
+{%- macro render_class(item, namer, mapping) -%}
+{%- if item and item.name -%}
+public final class {{ item.name }} {
+    {%- if item.is_singleton %}
+    public static let shared = {{ item.name }}()
+    public let handle: UnsafeMutableRawPointer
+
+    private init() {
+        self.handle = {{ item.singleton_symbol }}()
+    }
+    {%- else %}
+    public let handle: UnsafeMutableRawPointer
+
+    public init(handle: UnsafeMutableRawPointer) {
+        self.handle = handle
+    }
+    {%- endif %}
+
+{%- for method in item.methods %}
+{%- if not method.skip %}
+    {%- if method.is_property %}
+    public var {{ method.property_name }}: {{ method.api_return_type }} {
+{{ render_method_call(method) }}
+    }
+    {%- else %}
+    public {% if method.static %}static {% endif %}func {{ method.api_name }}(
+    {%- for param in method.params %}
+        _ {{ param.name }}: {{ param.api_type }}{% if not loop.last %},{% endif %}
+    {%- endfor %}
+    ){%- if method.return_bridge != 'void' %} -> {{ method.api_return_type }}{% endif %} {
+{{ render_method_call(method) }}
+    }
+    {%- endif %}
+
+{%- endif %}
+{%- endfor %}
+}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- if item is defined -%}
+{{ render_class(item, namer, mapping) }}
+{%- endif -%}

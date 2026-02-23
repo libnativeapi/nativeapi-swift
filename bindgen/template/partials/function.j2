@@ -1,0 +1,55 @@
+{#- Free-function wrapper template for Swift -#}
+{%- macro render_function(item, namer, mapping) -%}
+{%- if item and item.api_name -%}
+public func {{ item.api_name }}(
+{%- for param in item.params %}
+    _ {{ param.name }}: {{ param.api_type }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+){%- if item.return_bridge != 'void' %} -> {{ item.api_return_type }}{% endif %} {
+    {%- if item.return_bridge == 'string' %}
+    guard let cString = {{ item.call_symbol }}(
+    {%- for arg in item.call_args %}
+        {{ arg }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    ) else { return "" }
+    let value = String(cString: cString)
+    {{ item.string_free_symbol }}(cString)
+    return value
+    {%- elif item.return_bridge == 'point' %}
+    return Point({{ item.call_symbol }}(
+    {%- for arg in item.call_args %}
+        {{ arg }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    ))
+    {%- elif item.return_bridge == 'size' %}
+    return Size({{ item.call_symbol }}(
+    {%- for arg in item.call_args %}
+        {{ arg }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    ))
+    {%- elif item.return_bridge == 'rect' %}
+    return Rect({{ item.call_symbol }}(
+    {%- for arg in item.call_args %}
+        {{ arg }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    ))
+    {%- elif item.return_bridge == 'void' %}
+    {{ item.call_symbol }}(
+    {%- for arg in item.call_args %}
+        {{ arg }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    )
+    {%- else %}
+    return {{ item.call_symbol }}(
+    {%- for arg in item.call_args %}
+        {{ arg }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    )
+    {%- endif %}
+}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- if item is defined -%}
+{{ render_function(item, namer, mapping) }}
+{%- endif -%}

@@ -1,0 +1,85 @@
+{#- Partial template for rendering a single constant in Swift -#}
+{#- Expected context: item (IRConstant), namer (NameTransformer), mapping (MappingConfig) -#}
+{%- macro map_type(type_info, namer, mapping) -%}
+{%- if not type_info -%}
+Any
+{%- else -%}
+{%- set type_name = type_info.name | default(type_info.kind) -%}
+{%- if mapping.types and type_name and mapping.types[type_name] -%}
+{{ mapping.types[type_name] }}
+{%- elif type_info.kind == 'Void' -%}
+Void
+{%- elif type_info.kind == 'Bool' -%}
+Bool
+{%- elif type_info.kind == 'Int8' -%}
+Int8
+{%- elif type_info.kind == 'Int16' -%}
+Int16
+{%- elif type_info.kind == 'Int32' -%}
+Int32
+{%- elif type_info.kind == 'Int64' -%}
+Int64
+{%- elif type_info.kind == 'UInt8' -%}
+UInt8
+{%- elif type_info.kind == 'UInt16' -%}
+UInt16
+{%- elif type_info.kind == 'UInt32' -%}
+UInt32
+{%- elif type_info.kind == 'UInt64' -%}
+UInt64
+{%- elif type_info.kind == 'Float' -%}
+Float
+{%- elif type_info.kind == 'Double' -%}
+Double
+{%- elif type_info.kind == 'String' -%}
+String
+{%- elif type_info.kind == 'Pointer' -%}
+UnsafeMutableRawPointer{% if type_info.nullable %}?{% endif %}
+{%- elif type_info.kind == 'ConstPointer' -%}
+UnsafeRawPointer{% if type_info.nullable %}?{% endif %}
+{%- elif type_info.kind == 'Array' -%}
+[{{ map_type(type_info.element_type, namer, mapping) }}]
+{%- elif type_info.kind == 'Optional' -%}
+{{ map_type(type_info.inner_type, namer, mapping) }}?
+{%- elif type_info.kind == 'Record' or type_info.kind == 'Enum' -%}
+{%- if type_info.name -%}
+{{ namer.type_name(type_info.name) }}
+{%- else -%}
+Any
+{%- endif -%}
+{%- else -%}
+{%- set name = type_info.name | default(type_info.kind) -%}
+{%- if name -%}
+{{ namer.type_name(name) }}
+{%- else -%}
+Any
+{%- endif -%}
+{%- endif -%}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- macro format_value(item) -%}
+{%- if item.type.kind == 'String' -%}
+"{{ item.value }}"
+{%- elif item.type.kind == 'Bool' -%}
+{{ item.value | lower }}
+{%- else -%}
+{{ item.value }}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- macro render_constant(item, namer, mapping) -%}
+{%- if not item or not item.name -%}
+// Error: Invalid constant item
+{%- else -%}
+{%- set constant_name = namer.constant_name(item.name) -%}
+/// {{ constant_name }}
+/// Source: {{ item.source_path }}
+public let {{ constant_name }}: {{ map_type(item.type, namer, mapping) }} = {{ format_value(item) }}
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Render constant if item is provided directly in context -#}
+{%- if item is defined -%}
+{{ render_constant(item, namer, mapping) }}
+{%- endif -%}

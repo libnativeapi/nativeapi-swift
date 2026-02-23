@@ -1,0 +1,204 @@
+clang_flags:
+  - -x
+  - c++
+  - -std=c++17
+
+entry_headers:
+  - Sources/CNativeAPI/src/accessibility_manager.h
+  - Sources/CNativeAPI/src/application.h
+  - Sources/CNativeAPI/src/application_event.h
+  - Sources/CNativeAPI/src/autostart.h
+  - Sources/CNativeAPI/src/dialog.h
+  - Sources/CNativeAPI/src/display.h
+  - Sources/CNativeAPI/src/display_event.h
+  - Sources/CNativeAPI/src/display_manager.h
+  - Sources/CNativeAPI/src/foundation/color.h
+  - Sources/CNativeAPI/src/foundation/event.h
+  - Sources/CNativeAPI/src/foundation/event_emitter.h
+  - Sources/CNativeAPI/src/foundation/geometry.h
+  - Sources/CNativeAPI/src/foundation/id_allocator.h
+  - Sources/CNativeAPI/src/foundation/keyboard.h
+  - Sources/CNativeAPI/src/foundation/native_object_provider.h
+  - Sources/CNativeAPI/src/foundation/object_registry.h
+  - Sources/CNativeAPI/src/image.h
+  - Sources/CNativeAPI/src/keyboard_event.h
+  - Sources/CNativeAPI/src/keyboard_monitor.h
+  - Sources/CNativeAPI/src/menu.h
+  - Sources/CNativeAPI/src/menu_event.h
+  - Sources/CNativeAPI/src/message_dialog.h
+  - Sources/CNativeAPI/src/placement.h
+  - Sources/CNativeAPI/src/positioning_strategy.h
+  - Sources/CNativeAPI/src/preferences.h
+  - Sources/CNativeAPI/src/secure_storage.h
+  - Sources/CNativeAPI/src/shortcut.h
+  - Sources/CNativeAPI/src/shortcut_event.h
+  - Sources/CNativeAPI/src/shortcut_manager.h
+  - Sources/CNativeAPI/src/storage.h
+  - Sources/CNativeAPI/src/tray_icon.h
+  - Sources/CNativeAPI/src/tray_icon_event.h
+  - Sources/CNativeAPI/src/tray_manager.h
+  - Sources/CNativeAPI/src/url_opener.h
+  - Sources/CNativeAPI/src/window.h
+  - Sources/CNativeAPI/src/window_event.h
+  - Sources/CNativeAPI/src/window_manager.h
+  - Sources/CNativeAPI/src/window_registry.h
+
+include_paths:
+  - Sources/CNativeAPI/src
+  - Sources/CNativeAPI/include
+
+mapping:
+  language: swift
+  output_note: Generated wrapper from C++ API. Calls existing C API bindings from CNativeAPI.
+
+  naming:
+    file_name: pascal_case
+    type_name: pascal_case
+    enum_name: pascal_case
+    enum_value_name: camel_case
+    function_name: camel_case
+    method_name: camel_case
+    class_name: pascal_case
+    field_name: camel_case
+    param_name: camel_case
+    constant_name: camel_case
+    alias_name: pascal_case
+    strip_prefixes:
+      - na_
+      - NA_
+      - nativeapi_
+      - NATIVEAPI_
+    strip_suffixes:
+      - _t
+      - _T
+    add_prefix: ""
+    add_suffix: ""
+
+  types:
+    void: Void
+    bool: Bool
+    _Bool: Bool
+    char: Int8
+    short: Int16
+    int: Int32
+    long: Int64
+    "long long": Int64
+    int8_t: Int8
+    int16_t: Int16
+    int32_t: Int32
+    int64_t: Int64
+    int8: Int8
+    int16: Int16
+    int32: Int32
+    int64: Int64
+    ssize_t: Int
+    intptr_t: Int
+    ptrdiff_t: Int
+    "unsigned char": UInt8
+    "unsigned short": UInt16
+    "unsigned int": UInt32
+    "unsigned long": UInt64
+    "unsigned long long": UInt64
+    uint8_t: UInt8
+    uint16_t: UInt16
+    uint32_t: UInt32
+    uint64_t: UInt64
+    uint8: UInt8
+    uint16: UInt16
+    uint32: UInt32
+    uint64: UInt64
+    size_t: UInt
+    uintptr_t: UInt
+    float: Float
+    double: Double
+    float32: Float
+    float64: Double
+    "long double": Double
+    "char*": UnsafeMutablePointer<CChar>
+    "const char*": UnsafePointer<CChar>
+    "void*": UnsafeMutableRawPointer
+    "const void*": UnsafeRawPointer
+    cstring: UnsafePointer<CChar>
+    nativeapi::Point: Point
+    nativeapi::Size: Size
+    nativeapi::Rectangle: Rect
+    "const nativeapi::Point": Point
+    "const nativeapi::Size": Size
+    "const nativeapi::Rectangle": Rect
+    nativeapi::Window: Window
+    nativeapi::Display: Display
+    nativeapi::Menu: Menu
+    nativeapi::TrayIcon: TrayIcon
+    function_pointer: "@convention(c) () -> Void"
+
+  default_type: Any
+  passthrough_unknown: false
+
+  options:
+    singleton_classes:
+      - AccessibilityManager
+      - Application
+      - DisplayManager
+      - TrayManager
+      - WindowManager
+    api_type_rules:
+      exact:
+        dynamic: Any
+      contains:
+        - match: Pointer<CChar>
+          type: String
+        - match: "&"
+          type: UnsafeMutableRawPointer
+        - match: "::"
+          type: Any
+    return_bridge_map:
+      String: string
+      Point: point
+      Size: size
+      Rect: rect
+    cstring_free_symbols:
+      default: free_c_str
+      window: native_window_free_string
+    bridge_types:
+      point: Point
+      size: Size
+      rect: Rect
+    param_bridges:
+      - type_key: point
+        symbol_suffixes:
+          - _set_position
+        args:
+          - "{name}.x"
+          - "{name}.y"
+      - type_key: size
+        symbol_suffixes:
+          - _set_size
+          - _set_content_size
+          - _set_minimum_size
+          - _set_maximum_size
+        args:
+          - "{name}.width"
+          - "{name}.height"
+      - type_key: rect
+        symbol_suffixes:
+          - _set_bounds
+          - _set_content_bounds
+        args:
+          - "{name}.cStruct"
+    symbol_overrides:
+      nativeapi::RunApp: native_run_app
+      nativeapi::Application::GetInstance: native_application_get_instance
+      nativeapi::Window::Window: native_window_create
+    formatters:
+      - name: swiftformat-generated
+        cmd:
+          - swiftformat
+          - "{out_dir}/src"
+        continue_on_error: true
+
+filters:
+  allowlist_regex: []
+  denylist_regex: []
+  exclude_dirs:
+    - capi
+    - platform

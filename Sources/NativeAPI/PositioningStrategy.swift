@@ -126,7 +126,7 @@ public struct PositioningStrategy {
             guard let absolutePosition = absolutePosition else {
                 fatalError("Absolute positioning strategy requires a point")
             }
-            var point = absolutePosition.cStruct
+            var point = native_point_t(x: absolutePosition.x, y: absolutePosition.y)
             return native_positioning_strategy_absolute(&point)
             
         case .cursorPosition:
@@ -134,11 +134,13 @@ public struct PositioningStrategy {
             
         case .relative:
             if let window = relativeWindow {
-                var offset = (relativeOffset ?? Point(x: 0, y: 0)).cStruct
+                let offsetPoint = relativeOffset ?? Point(x: 0, y: 0)
+                var offset = native_point_t(x: offsetPoint.x, y: offsetPoint.y)
                 return native_positioning_strategy_relative_to_window(window.handle, &offset)
             } else if let rect = relativeRect {
-                var cRect = rect.cStruct
-                var offset = (relativeOffset ?? Point(x: 0, y: 0)).cStruct
+                var cRect = native_rectangle_t(x: rect.x, y: rect.y, width: rect.width, height: rect.height)
+                let offsetPoint = relativeOffset ?? Point(x: 0, y: 0)
+                var offset = native_point_t(x: offsetPoint.x, y: offsetPoint.y)
                 return native_positioning_strategy_relative(&cRect, &offset)
             } else {
                 fatalError("Relative positioning strategy requires either a rectangle or a window")

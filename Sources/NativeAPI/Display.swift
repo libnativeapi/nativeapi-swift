@@ -49,19 +49,19 @@ public class Display: BaseNativeHandleWrapper<native_display_t> {
     /// Position of this display in the virtual desktop
     public var position: Point {
         let nativePoint = native_display_get_position(nativeHandle)
-        return Point(nativePoint)
+        return Point(x: nativePoint.x, y: nativePoint.y)
     }
 
     /// Physical size of this display in pixels
     public var size: Size {
         let nativeSize = native_display_get_size(nativeHandle)
-        return Size(nativeSize)
+        return Size(width: nativeSize.width, height: nativeSize.height)
     }
 
     /// Work area of this display (excluding taskbar/dock)
     public var workArea: Rect {
         let nativeRect = native_display_get_work_area(nativeHandle)
-        return Rect(nativeRect)
+        return Rect(x: nativeRect.x, y: nativeRect.y, width: nativeRect.width, height: nativeRect.height)
     }
 
     /// Scale factor of this display

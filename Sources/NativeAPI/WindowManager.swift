@@ -15,10 +15,6 @@ public enum WindowEventType {
 
     internal init(_ cEventType: native_window_event_type_t, _ cEvent: native_window_event_t) {
         switch cEventType {
-        case NATIVE_WINDOW_EVENT_CREATED:
-            self = .created
-        case NATIVE_WINDOW_EVENT_CLOSED:
-            self = .closed
         case NATIVE_WINDOW_EVENT_FOCUSED:
             self = .focused
         case NATIVE_WINDOW_EVENT_BLURRED:
@@ -30,9 +26,11 @@ public enum WindowEventType {
         case NATIVE_WINDOW_EVENT_RESTORED:
             self = .restored
         case NATIVE_WINDOW_EVENT_MOVED:
-            self = .moved(Point(cEvent.data.moved.position))
+            let p = cEvent.data.moved.position
+            self = .moved(Point(x: p.x, y: p.y))
         case NATIVE_WINDOW_EVENT_RESIZED:
-            self = .resized(Size(cEvent.data.resized.size))
+            let s = cEvent.data.resized.size
+            self = .resized(Size(width: s.width, height: s.height))
         default:
             self = .created
         }
@@ -64,10 +62,27 @@ public class WindowManager: @unchecked Sendable {
 
     /// Create a new window with the specified options
     public func create(with options: WindowOptions) -> Window? {
-        guard let handle = native_window_manager_create(options.cOptions) else {
+        guard let handle = native_window_create() else {
             return nil
         }
-        return Window(handle: handle)
+        let window = Window(handle: handle)
+        // Apply options
+        if let title = options.title {
+            _ = native_window_set_title(handle, title)
+        }
+        if let size = options.size {
+            native_window_set_size(handle, size.width, size.height, false)
+        }
+        if let minimumSize = options.minimumSize {
+            native_window_set_minimum_size(handle, minimumSize.width, minimumSize.height)
+        }
+        if let maximumSize = options.maximumSize {
+            native_window_set_maximum_size(handle, maximumSize.width, maximumSize.height)
+        }
+        if options.centered {
+            native_window_center(handle)
+        }
+        return window
     }
 
     /// Create a new window with default options
@@ -100,7 +115,11 @@ public class WindowManager: @unchecked Sendable {
 
     /// Destroy a window by its ID
     public func destroy(id: Int) -> Bool {
-        return native_window_manager_destroy(native_window_id_t(id))
+        guard let handle = native_window_manager_get(native_window_id_t(id)) else {
+            return false
+        }
+        native_window_destroy(handle)
+        return true
     }
 
     /// Shutdown the window manager

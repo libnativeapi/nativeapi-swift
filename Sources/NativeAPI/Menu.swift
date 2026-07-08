@@ -812,7 +812,7 @@ public class Menu: BaseEventEmitter, NativeHandleWrapper {
             native_positioning_strategy_free(nativeStrategy)
         }
         
-        return native_menu_open(nativeHandle, nativeStrategy, placement.nativeValue)
+        return native_menu_open(nativeHandle, nativeStrategy, native_placement_t(rawValue: placement.rawValue))
     }
     
     /// Display the menu as a context menu at the specified screen coordinates.

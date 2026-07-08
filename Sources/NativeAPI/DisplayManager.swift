@@ -36,7 +36,7 @@ public class DisplayManager: @unchecked Sendable {
     /// returns it.
     public func getCursorPosition() -> Point {
         let nativePoint = native_display_manager_get_cursor_position()
-        return Point(nativePoint)
+        return Point(x: nativePoint.x, y: nativePoint.y)
     }
 
     /// Returns the primary display.

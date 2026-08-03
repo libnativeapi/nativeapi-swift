@@ -9,13 +9,112 @@ let package = Package(
     ],
     products: [
         .library(name: "NativeAPI", targets: ["NativeAPI"]),
-        .executable(name: "Example", targets: ["Example"]),
+        .executable(name: "AccessibilityExample", targets: ["AccessibilityExample"]),
+        .executable(name: "ApplicationExample", targets: ["ApplicationExample"]),
+        .executable(name: "DisplayExample", targets: ["DisplayExample"]),
+        .executable(name: "KeyboardExample", targets: ["KeyboardExample"]),
+        .executable(name: "LaunchAtLoginExample", targets: ["LaunchAtLoginExample"]),
+        .executable(name: "MenuExample", targets: ["MenuExample"]),
+        .executable(name: "MessageDialogExample", targets: ["MessageDialogExample"]),
+        .executable(name: "ShortcutExample", targets: ["ShortcutExample"]),
+        .executable(name: "StorageExample", targets: ["StorageExample"]),
+        .executable(name: "TrayIconExample", targets: ["TrayIconExample"]),
+        .executable(name: "UrlOpenerExample", targets: ["UrlOpenerExample"]),
+        .executable(name: "WindowExample", targets: ["WindowExample"]),
     ],
     targets: [
         .executableTarget(
-            name: "Example",
+            name: "AccessibilityExample",
             dependencies: ["NativeAPI"],
-            path: "Examples/Example",
+            path: "Examples/AccessibilityExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "ApplicationExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/ApplicationExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "DisplayExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/DisplayExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "KeyboardExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/KeyboardExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "LaunchAtLoginExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/LaunchAtLoginExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "MenuExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/MenuExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "MessageDialogExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/MessageDialogExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "ShortcutExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/ShortcutExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "StorageExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/StorageExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "TrayIconExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/TrayIconExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "UrlOpenerExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/UrlOpenerExample",
+            swiftSettings: [
+                .interoperabilityMode(.Cxx)
+            ]
+        ),
+        .executableTarget(
+            name: "WindowExample",
+            dependencies: ["NativeAPI"],
+            path: "Examples/WindowExample",
             swiftSettings: [
                 .interoperabilityMode(.Cxx)
             ]
@@ -32,6 +131,7 @@ let package = Package(
                     "src/platform/macos",
                     "src/platform/ohos",
                     "src/platform/windows",
+                    "tests",
                 ]
                 #if os(Linux)
                     excluded.removeAll { $0 == "src/platform/linux" }
@@ -47,6 +147,8 @@ let package = Package(
                     return [
                         .linkedFramework("Cocoa"),
                         .linkedFramework("Foundation"),
+                        .linkedFramework("Carbon"),
+                        .linkedFramework("ServiceManagement"),
                     ]
                 #else
                     return []

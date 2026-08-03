@@ -220,16 +220,44 @@ Planned support for future releases.
 
 ## Examples
 
-The package includes comprehensive examples:
-
-- **Basic Example** (`Sources/Example/main.swift`): Simple usage patterns
-- **Advanced Example** (`Sources/Example/AppRunnerExample.swift`): Full application with event handling
-
-Run examples:
+Each example is its own executable target under `Examples/`, covering one
+module of the API. They print what they do, so running one is the quickest way
+to see the shape of a binding.
 
 ```bash
-swift run Example
+swift run DisplayExample          # displays, work areas, display events
+swift run StorageExample          # Preferences and SecureStorage
+swift run UrlOpenerExample        # open a URL with the system handler
+swift run WindowExample           # window geometry, style, state, events
+swift run MenuExample             # menu items, accelerators, submenus
+swift run TrayIconExample         # tray icon, context menu, click events
+swift run ShortcutExample         # global shortcuts and shortcut events
+swift run KeyboardExample         # keyboard monitor and modifier events
+swift run ApplicationExample      # menu bar, primary window, event loop
+swift run LaunchAtLoginExample    # launch-at-login registration
+swift run MessageDialogExample    # message dialogs and modality
+swift run AccessibilityExample    # accessibility permission
 ```
+
+Some take arguments:
+
+```bash
+swift run ApplicationExample --dry-run    # skip the blocking event loop
+swift run MessageDialogExample --open     # actually show the modal dialog
+swift run UrlOpenerExample "https://example.com"
+```
+
+Notes:
+
+- `ApplicationExample` opens a window and blocks until you close it; the other
+  examples finish on their own.
+- `ShortcutExample` and `KeyboardExample` need accessibility permission on
+  macOS. Without it they report that registration or monitoring failed rather
+  than crashing — run `AccessibilityExample` first.
+- `LaunchAtLoginExample` writes a real login-item registration and then puts it
+  back the way it found it.
+- `Examples/ExampleApp` is a separate package showing NativeAPI inside a
+  [Shaft](https://github.com/ShaftUI/Shaft) UI; build it from its own directory.
 
 ## Testing
 

@@ -1,151 +1,87 @@
-import Foundation
-import CNativeAPI
+// AUTO-GENERATED. DO NOT EDIT.
+// Any manual changes WILL BE LOST when this file is regenerated.
 
-/// Strategy for determining where to position UI elements.
-///
-/// PositioningStrategy defines how to calculate the position for UI elements
-/// such as menus, tooltips, or popovers. It supports various positioning modes:
-/// - Absolute: Fixed screen coordinates
-/// - CursorPosition: Current mouse cursor position
-/// - Relative: Position relative to a rectangle
-///
-/// Example:
-/// ```swift
-/// // Position menu at absolute screen coordinates
-/// menu.open(PositioningStrategy.absolute(Point(x: 100, y: 200)), placement: .bottom)
-///
-/// // Position menu at current mouse location
-/// menu.open(PositioningStrategy.cursorPosition(), placement: .bottomStart)
-///
-/// // Position menu relative to a rectangle with offset
-/// let buttonRect = button.bounds
-/// menu.open(PositioningStrategy.relative(rect: buttonRect, offset: Point(x: 0, y: 10)), placement: .bottom)
-/// ```
-public struct PositioningStrategy {
-    /// Type of positioning strategy
-    public enum StrategyType: Int32 {
-        /// Position at fixed screen coordinates
-        case absolute = 0
-        /// Position at current mouse cursor location
-        case cursorPosition = 1
-        /// Position relative to a rectangle
-        case relative = 2
+import CNativeAPI
+import Foundation
+
+public enum PositioningStrategyType: CInt {
+  case absolute = 0
+  case cursorPosition = 1
+  case relative = 2
+
+  init(raw: native_positioning_strategy_type_t) {
+    switch raw {
+    case NATIVE_POSITIONING_STRATEGY_TYPE_ABSOLUTE: self = .absolute
+    case NATIVE_POSITIONING_STRATEGY_TYPE_CURSOR_POSITION: self = .cursorPosition
+    case NATIVE_POSITIONING_STRATEGY_TYPE_RELATIVE: self = .relative
+    default: self = .absolute
     }
-    
-    internal let type: StrategyType
-    internal let absolutePosition: Point?
-    internal let relativeRect: Rect?
-    internal let relativeOffset: Point?
-    internal let relativeWindow: Window?
-    
-    private init(type: StrategyType, absolutePosition: Point? = nil, relativeRect: Rect? = nil, relativeOffset: Point? = nil, relativeWindow: Window? = nil) {
-        self.type = type
-        self.absolutePosition = absolutePosition
-        self.relativeRect = relativeRect
-        self.relativeOffset = relativeOffset
-        self.relativeWindow = relativeWindow
+  }
+
+  var raw: native_positioning_strategy_type_t {
+    native_positioning_strategy_type_t(rawValue: UInt32(self.rawValue))
+  }
+}
+
+/// Owned handle to a native `PositioningStrategy`.
+public final class PositioningStrategy {
+  public let nativeHandle: native_positioning_strategy_t
+  private let ownsHandle: Bool
+
+  public init(nativeHandle: native_positioning_strategy_t, ownsHandle: Bool = true) {
+    self.nativeHandle = nativeHandle
+    self.ownsHandle = ownsHandle
+  }
+
+  deinit {
+    if ownsHandle {
+      native_positioning_strategy_free(nativeHandle)
     }
-    
-    /// Create a strategy for absolute positioning at fixed coordinates.
-    ///
-    /// - Parameter point: Point in screen coordinates
-    /// - Returns: PositioningStrategy configured for absolute positioning
-    ///
-    /// Example:
-    /// ```swift
-    /// let strategy = PositioningStrategy.absolute(Point(x: 100, y: 200))
-    /// menu.open(strategy, placement: .bottom)
-    /// ```
-    public static func absolute(_ point: Point) -> PositioningStrategy {
-        return PositioningStrategy(type: .absolute, absolutePosition: point)
-    }
-    
-    /// Create a strategy for positioning at current mouse location.
-    ///
-    /// - Returns: PositioningStrategy configured to use mouse cursor position
-    ///
-    /// Example:
-    /// ```swift
-    /// let strategy = PositioningStrategy.cursorPosition()
-    /// contextMenu.open(strategy, placement: .bottomStart)
-    /// ```
-    public static func cursorPosition() -> PositioningStrategy {
-        return PositioningStrategy(type: .cursorPosition)
-    }
-    
-    /// Create a strategy for positioning relative to a rectangle.
-    ///
-    /// - Parameters:
-    ///   - rect: Rectangle in screen coordinates to position relative to
-    ///   - offset: Optional offset point to apply to the position (default: Point(x: 0, y: 0))
-    /// - Returns: PositioningStrategy configured for rectangle-relative positioning
-    ///
-    /// Example:
-    /// ```swift
-    /// let buttonRect = button.bounds
-    /// // Position at bottom of button (no offset)
-    /// let strategy = PositioningStrategy.relative(rect: buttonRect, offset: Point(x: 0, y: 0))
-    /// menu.open(strategy)
-    ///
-    /// // Position at bottom of button with 10px vertical offset
-    /// let strategy2 = PositioningStrategy.relative(rect: buttonRect, offset: Point(x: 0, y: 10))
-    /// menu.open(strategy2)
-    /// ```
-    public static func relative(rect: Rect, offset: Point = Point(x: 0, y: 0)) -> PositioningStrategy {
-        return PositioningStrategy(type: .relative, relativeRect: rect, relativeOffset: offset)
-    }
-    
-    /// Create a strategy for positioning relative to a window.
-    ///
-    /// - Parameters:
-    ///   - window: Window to position relative to
-    ///   - offset: Optional offset point to apply to the position (default: Point(x: 0, y: 0))
-    /// - Returns: PositioningStrategy configured for window-relative positioning
-    ///
-    /// This method stores a reference to the window and will obtain its bounds
-    /// dynamically when needed, ensuring the position reflects the window's current state.
-    ///
-    /// Example:
-    /// ```swift
-    /// let window = WindowManager.shared.create(options)
-    /// // Position menu at bottom of window (no offset)
-    /// let strategy = PositioningStrategy.relative(window: window, offset: Point(x: 0, y: 0))
-    /// menu.open(strategy)
-    ///
-    /// // Position menu at bottom of window with 10px vertical offset
-    /// let strategy2 = PositioningStrategy.relative(window: window, offset: Point(x: 0, y: 10))
-    /// menu.open(strategy2)
-    /// ```
-    public static func relative(window: Window, offset: Point = Point(x: 0, y: 0)) -> PositioningStrategy {
-        return PositioningStrategy(type: .relative, relativeOffset: offset, relativeWindow: window)
-    }
-    
-    internal var nativeValue: native_positioning_strategy_t {
-        switch type {
-        case .absolute:
-            guard let absolutePosition = absolutePosition else {
-                fatalError("Absolute positioning strategy requires a point")
-            }
-            var point = native_point_t(x: absolutePosition.x, y: absolutePosition.y)
-            return native_positioning_strategy_absolute(&point)
-            
-        case .cursorPosition:
-            return native_positioning_strategy_cursor_position()
-            
-        case .relative:
-            if let window = relativeWindow {
-                let offsetPoint = relativeOffset ?? Point(x: 0, y: 0)
-                var offset = native_point_t(x: offsetPoint.x, y: offsetPoint.y)
-                return native_positioning_strategy_relative_to_window(window.handle, &offset)
-            } else if let rect = relativeRect {
-                var cRect = native_rectangle_t(x: rect.x, y: rect.y, width: rect.width, height: rect.height)
-                let offsetPoint = relativeOffset ?? Point(x: 0, y: 0)
-                var offset = native_point_t(x: offsetPoint.x, y: offsetPoint.y)
-                return native_positioning_strategy_relative(&cRect, &offset)
-            } else {
-                fatalError("Relative positioning strategy requires either a rectangle or a window")
-            }
-        }
-    }
+  }
+
+  public static func absolute(point: Point) -> PositioningStrategy? {
+    var pointRaw = point.toRaw()
+    let handle = native_positioning_strategy_absolute(pointRaw)
+    guard handle != NATIVE_INVALID_POSITIONING_STRATEGY else { return nil }
+    return PositioningStrategy(nativeHandle: handle)
+  }
+
+  public static func cursorPosition() -> PositioningStrategy? {
+    let handle = native_positioning_strategy_cursor_position()
+    guard handle != NATIVE_INVALID_POSITIONING_STRATEGY else { return nil }
+    return PositioningStrategy(nativeHandle: handle)
+  }
+
+  public static func relativeWithRectAndOffset(rect: Rectangle, offset: Point) -> PositioningStrategy? {
+    var rectRaw = rect.toRaw()
+    var offsetRaw = offset.toRaw()
+    let handle = native_positioning_strategy_relative_with_rect_and_offset(rectRaw, offsetRaw)
+    guard handle != NATIVE_INVALID_POSITIONING_STRATEGY else { return nil }
+    return PositioningStrategy(nativeHandle: handle)
+  }
+
+  public static func relativeWithWindowAndOffset(window: Window, offset: Point) -> PositioningStrategy? {
+    var offsetRaw = offset.toRaw()
+    let handle = native_positioning_strategy_relative_with_window_and_offset(window.nativeHandle, offsetRaw)
+    guard handle != NATIVE_INVALID_POSITIONING_STRATEGY else { return nil }
+    return PositioningStrategy(nativeHandle: handle)
+  }
+
+  public var type: PositioningStrategyType {
+    return PositioningStrategyType(raw: native_positioning_strategy_get_type(nativeHandle))
+  }
+
+  public var absolutePosition: Point {
+    return Point(raw: native_positioning_strategy_get_absolute_position(nativeHandle))
+  }
+
+  public var relativeRectangle: Rectangle {
+    return Rectangle(raw: native_positioning_strategy_get_relative_rectangle(nativeHandle))
+  }
+
+  public var relativeOffset: Point {
+    return Point(raw: native_positioning_strategy_get_relative_offset(nativeHandle))
+  }
+
 }
 

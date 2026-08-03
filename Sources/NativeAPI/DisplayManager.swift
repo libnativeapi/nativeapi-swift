@@ -1,53 +1,51 @@
+// AUTO-GENERATED. DO NOT EDIT.
+// Any manual changes WILL BE LOST when this file is regenerated.
+
 import CNativeAPI
 import Foundation
 
-/// DisplayManager manages all displays/monitors
-public class DisplayManager: @unchecked Sendable {
-    /// Singleton instance of DisplayManager
-    public static let shared = DisplayManager()
-
-    private init() {}
-
-    /// Returns a list of all displays.
-    ///
-    /// This method retrieves a list of all available displays using the native
-    /// display manager API. It then converts each display handle into a Swift
-    /// Display object and returns the list.
-    public func getAll() -> [Display] {
-        let displayList = native_display_manager_get_all()
-        var displays: [Display] = []
-
-        for i in 0..<displayList.count {
-            if let nativeHandle = (displayList.displays + i).pointee {
-                displays.append(Display(nativeHandle: nativeHandle))
-            }
-        }
-
-        // Note: In the Dart version, the display list is not freed
-        // native_display_list_free(displayList)
-
-        return displays
+public enum DisplayManager {
+  public static func getAll() -> [Display] {
+    var list = native_display_manager_get_all()
+    var items: [Display] = []
+    if let buffer = list.displays {
+      for index in 0..<Int(list.count) {
+        items.append(Display(nativeHandle: buffer[index]))
+      }
     }
+    // The handles now belong to `items`; free just the array.
+    native_display_list_release(&list)
+    return items
+  }
 
-    /// Returns the current cursor position.
-    ///
-    /// This method retrieves the current cursor position using the native display
-    /// manager API. It then converts the position into a Swift Point object and
-    /// returns it.
-    public func getCursorPosition() -> Point {
-        let nativePoint = native_display_manager_get_cursor_position()
-        return Point(x: nativePoint.x, y: nativePoint.y)
-    }
+  public static func getPrimary() -> Display? {
+    let handle = native_display_manager_get_primary()
+    guard handle != NATIVE_INVALID_DISPLAY else { return nil }
+    return Display(nativeHandle: handle)
+  }
 
-    /// Returns the primary display.
-    ///
-    /// This method retrieves the primary display using the native display manager
-    /// API. It then converts the display handle into a Swift Display object and
-    /// returns it.
-    public func getPrimary() -> Display? {
-        guard let nativeHandle = native_display_manager_get_primary() else {
-            return nil
-        }
-        return Display(nativeHandle: nativeHandle)
+  public static func getCursorPosition() -> Point {
+    return Point(raw: native_display_manager_get_cursor_position())
+  }
+
+  /// Registers `callback` for every `DisplayEvent` this `DisplayManager` emits.
+  ///
+  /// The closure is retained for good: the C ABI keeps the context
+  /// pointer but offers no hook to release it, so removing the listener
+  /// stops the calls without freeing the closure.
+  public static func addListener(_ callback: @escaping (DisplayEvent) -> Void) -> ListenerId {
+    let context = Unmanaged.passRetained(CallbackBox1<DisplayEvent>(callback)).toOpaque()
+    let trampoline: @convention(c) (UnsafePointer<native_display_event_t>?, UnsafeMutableRawPointer?) -> Void = { event, userData in
+      guard let event, let userData, let value = DisplayEvent(raw: event.pointee) else { return }
+      Unmanaged<CallbackBox1<DisplayEvent>>.fromOpaque(userData).takeUnretainedValue().body(value)
     }
+    return native_display_manager_add_listener(trampoline, context)
+  }
+
+  /// Unregisters a listener. Returns false if unknown.
+  public static func removeListener(_ listenerId: ListenerId) -> Bool {
+    native_display_manager_remove_listener(listenerId)
+  }
+
 }
+

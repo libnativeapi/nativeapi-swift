@@ -1,181 +1,95 @@
+// AUTO-GENERATED. DO NOT EDIT.
+// Any manual changes WILL BE LOST when this file is regenerated.
+
 import CNativeAPI
 import Foundation
 
-/// Window event types
-public enum WindowEventType {
-    case created
-    case closed
-    case focused
-    case blurred
-    case minimized
-    case maximized
-    case restored
-    case moved(Point)
-    case resized(Size)
+public enum WindowManager {
+  public static func get(id: WindowId) -> Window? {
+    let handle = native_window_manager_get(id)
+    guard handle != NATIVE_INVALID_WINDOW else { return nil }
+    return Window(nativeHandle: handle)
+  }
 
-    internal init(_ cEventType: native_window_event_type_t, _ cEvent: native_window_event_t) {
-        switch cEventType {
-        case NATIVE_WINDOW_EVENT_FOCUSED:
-            self = .focused
-        case NATIVE_WINDOW_EVENT_BLURRED:
-            self = .blurred
-        case NATIVE_WINDOW_EVENT_MINIMIZED:
-            self = .minimized
-        case NATIVE_WINDOW_EVENT_MAXIMIZED:
-            self = .maximized
-        case NATIVE_WINDOW_EVENT_RESTORED:
-            self = .restored
-        case NATIVE_WINDOW_EVENT_MOVED:
-            let p = cEvent.data.moved.position
-            self = .moved(Point(x: p.x, y: p.y))
-        case NATIVE_WINDOW_EVENT_RESIZED:
-            let s = cEvent.data.resized.size
-            self = .resized(Size(width: s.width, height: s.height))
-        default:
-            self = .created
-        }
+  public static func getAll() -> [Window] {
+    var list = native_window_manager_get_all()
+    var items: [Window] = []
+    if let buffer = list.windows {
+      for index in 0..<Int(list.count) {
+        items.append(Window(nativeHandle: buffer[index]))
+      }
     }
+    // The handles now belong to `items`; free just the array.
+    native_window_list_release(&list)
+    return items
+  }
+
+  public static func getCurrent() -> Window? {
+    let handle = native_window_manager_get_current()
+    guard handle != NATIVE_INVALID_WINDOW else { return nil }
+    return Window(nativeHandle: handle)
+  }
+
+  public static func setWillShowHook(hook: ((UInt32) -> Void)?) -> Void {
+    let hookContext = hook.map { Unmanaged.passRetained(CallbackBox1<UInt32>($0)).toOpaque() }
+    let hookTrampoline = { (arg0: UInt32, userData: UnsafeMutableRawPointer?) -> Void in
+      guard let userData else { return }
+      Unmanaged<CallbackBox1<UInt32>>.fromOpaque(userData).takeUnretainedValue().body(arg0)
+    } as @convention(c) (UInt32, UnsafeMutableRawPointer?) -> Void
+    native_window_manager_set_will_show_hook(hookContext != nil ? hookTrampoline : nil, hookContext)
+  }
+
+  public static func setWillHideHook(hook: ((UInt32) -> Void)?) -> Void {
+    let hookContext = hook.map { Unmanaged.passRetained(CallbackBox1<UInt32>($0)).toOpaque() }
+    let hookTrampoline = { (arg0: UInt32, userData: UnsafeMutableRawPointer?) -> Void in
+      guard let userData else { return }
+      Unmanaged<CallbackBox1<UInt32>>.fromOpaque(userData).takeUnretainedValue().body(arg0)
+    } as @convention(c) (UInt32, UnsafeMutableRawPointer?) -> Void
+    native_window_manager_set_will_hide_hook(hookContext != nil ? hookTrampoline : nil, hookContext)
+  }
+
+  public static func hasWillShowHook() -> Bool {
+    return native_window_manager_has_will_show_hook()
+  }
+
+  public static func hasWillHideHook() -> Bool {
+    return native_window_manager_has_will_hide_hook()
+  }
+
+  public static func handleWillShow(id: WindowId) -> Void {
+    native_window_manager_handle_will_show(id)
+  }
+
+  public static func handleWillHide(id: WindowId) -> Void {
+    native_window_manager_handle_will_hide(id)
+  }
+
+  public static func callOriginalShow(id: WindowId) -> Bool {
+    return native_window_manager_call_original_show(id)
+  }
+
+  public static func callOriginalHide(id: WindowId) -> Bool {
+    return native_window_manager_call_original_hide(id)
+  }
+
+  /// Registers `callback` for every `WindowEvent` this `WindowManager` emits.
+  ///
+  /// The closure is retained for good: the C ABI keeps the context
+  /// pointer but offers no hook to release it, so removing the listener
+  /// stops the calls without freeing the closure.
+  public static func addListener(_ callback: @escaping (WindowEvent) -> Void) -> ListenerId {
+    let context = Unmanaged.passRetained(CallbackBox1<WindowEvent>(callback)).toOpaque()
+    let trampoline: @convention(c) (UnsafePointer<native_window_event_t>?, UnsafeMutableRawPointer?) -> Void = { event, userData in
+      guard let event, let userData, let value = WindowEvent(raw: event.pointee) else { return }
+      Unmanaged<CallbackBox1<WindowEvent>>.fromOpaque(userData).takeUnretainedValue().body(value)
+    }
+    return native_window_manager_add_listener(trampoline, context)
+  }
+
+  /// Unregisters a listener. Returns false if unknown.
+  public static func removeListener(_ listenerId: ListenerId) -> Bool {
+    native_window_manager_remove_listener(listenerId)
+  }
+
 }
 
-/// Window event data
-public struct WindowEvent {
-    public let type: WindowEventType
-    public let windowId: Int
-
-    internal init(_ cEvent: native_window_event_t) {
-        self.type = WindowEventType(cEvent.type, cEvent)
-        self.windowId = Int(cEvent.window_id)
-    }
-}
-
-/// Window event callback closure
-public typealias WindowEventCallback = (WindowEvent) -> Void
-
-public class WindowManager: @unchecked Sendable {
-    public static let shared = WindowManager()
-
-    private var eventCallbacks: [Int: WindowEventCallback] = [:]
-    private var callbackCounter = 0
-    private let callbackQueue = DispatchQueue(label: "com.nativeapi.windowmanager.callbacks")
-
-    private init() {}
-
-    /// Create a new window with the specified options
-    public func create(with options: WindowOptions) -> Window? {
-        guard let handle = native_window_create() else {
-            return nil
-        }
-        let window = Window(handle: handle)
-        // Apply options
-        if let title = options.title {
-            _ = native_window_set_title(handle, title)
-        }
-        if let size = options.size {
-            native_window_set_size(handle, size.width, size.height, false)
-        }
-        if let minimumSize = options.minimumSize {
-            native_window_set_minimum_size(handle, minimumSize.width, minimumSize.height)
-        }
-        if let maximumSize = options.maximumSize {
-            native_window_set_maximum_size(handle, maximumSize.width, maximumSize.height)
-        }
-        if options.centered {
-            native_window_center(handle)
-        }
-        return window
-    }
-
-    /// Create a new window with default options
-    public func create() -> Window? {
-        let options = WindowOptions()
-        return create(with: options)
-    }
-
-    /// Get a list of all windows
-    public func getAll() -> WindowList {
-        let cList = native_window_manager_get_all()
-        return WindowList(cList)
-    }
-
-    /// Find a window by its ID
-    public func get(by id: Int) -> Window? {
-        guard let handle = native_window_manager_get(native_window_id_t(id)) else {
-            return nil
-        }
-        return Window(handle: handle)
-    }
-
-    /// Get the currently focused window
-    public func getCurrent() -> Window? {
-        guard let handle = native_window_manager_get_current() else {
-            return nil
-        }
-        return Window(handle: handle)
-    }
-
-    /// Destroy a window by its ID
-    public func destroy(id: Int) -> Bool {
-        guard let handle = native_window_manager_get(native_window_id_t(id)) else {
-            return false
-        }
-        native_window_destroy(handle)
-        return true
-    }
-
-    /// Shutdown the window manager
-    public func shutdown() {
-        native_window_manager_shutdown()
-    }
-
-    // MARK: - Event Handling
-
-    /// Register a callback for window events
-    @discardableResult
-    public func registerEventCallback(_ callback: @escaping WindowEventCallback) -> Int {
-        return callbackQueue.sync {
-            callbackCounter += 1
-            let callbackId = callbackCounter
-            eventCallbacks[callbackId] = callback
-
-            let cCallbackId = native_window_manager_register_event_callback(
-                { cEventPtr, userData in
-                    guard let cEventPtr = cEventPtr else { return }
-                    let cEvent = cEventPtr.pointee
-                    let event = WindowEvent(cEvent)
-
-                    // Get the callback ID from user data
-                    let callbackId = Int(bitPattern: userData)
-
-                    // Execute callback on main queue
-                    DispatchQueue.main.async {
-                        WindowManager.shared.eventCallbacks[callbackId]?(event)
-                    }
-                }, UnsafeMutableRawPointer(bitPattern: callbackId))
-
-            // If C registration failed, remove from our dictionary
-            if cCallbackId == -1 {
-                eventCallbacks.removeValue(forKey: callbackId)
-                return -1
-            }
-
-            return callbackId
-        }
-    }
-
-    /// Unregister a window event callback
-    @discardableResult
-    public func unregisterEventCallback(_ callbackId: Int) -> Bool {
-        return callbackQueue.sync {
-            guard eventCallbacks[callbackId] != nil else {
-                return false
-            }
-
-            let success = native_window_manager_unregister_event_callback(Int32(callbackId))
-            if success {
-                eventCallbacks.removeValue(forKey: callbackId)
-            }
-
-            return success
-        }
-    }
-}

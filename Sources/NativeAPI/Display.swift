@@ -1,97 +1,124 @@
+// AUTO-GENERATED. DO NOT EDIT.
+// Any manual changes WILL BE LOST when this file is regenerated.
+
 import CNativeAPI
 import Foundation
 
-/// Display orientation enumeration
-public enum DisplayOrientation: Int, CaseIterable {
-    case portrait = 0
-    case landscape = 90
-    case portraitFlipped = 180
-    case landscapeFlipped = 270
-    
-    public init(value: Int) {
-        switch value {
-        case 0: self = .portrait
-        case 90: self = .landscape
-        case 180: self = .portraitFlipped
-        case 270: self = .landscapeFlipped
-        default: self = .portrait
-        }
+public enum DisplayOrientation: CInt {
+  case portrait = 0
+  case landscape = 90
+  case portraitFlipped = 180
+  case landscapeFlipped = 270
+
+  init(raw: native_display_orientation_t) {
+    switch raw {
+    case NATIVE_DISPLAY_ORIENTATION_PORTRAIT: self = .portrait
+    case NATIVE_DISPLAY_ORIENTATION_LANDSCAPE: self = .landscape
+    case NATIVE_DISPLAY_ORIENTATION_PORTRAIT_FLIPPED: self = .portraitFlipped
+    case NATIVE_DISPLAY_ORIENTATION_LANDSCAPE_FLIPPED: self = .landscapeFlipped
+    default: self = .portrait
     }
+  }
+
+  var raw: native_display_orientation_t {
+    native_display_orientation_t(rawValue: UInt32(self.rawValue))
+  }
 }
 
-/// Display represents a single display/monitor
-public class Display: BaseNativeHandleWrapper<native_display_t> {
-    
-    public init(nativeHandle: native_display_t) {
-        super.init(nativeHandle: nativeHandle) { native_display_free($0) }
-    }
+/// One `DisplayEvent`, in its concrete form.
+public enum DisplayEvent {
+  case added(display: Display)
+  case removed(display: Display)
+  case changed(display: Display, oldDisplay: Display, newDisplay: Display)
 
-    /// Unique identifier for this display
-    public var id: String {
-        guard let idPtr = native_display_get_id(nativeHandle) else {
-            return ""
-        }
-        let id = String(cString: idPtr)
-        free_c_str(idPtr)
-        return id
+  init?(raw: native_display_event_t) {
+    switch raw.type {
+    case NATIVE_DISPLAY_EVENT_TYPE_ADDED: self = .added(display: Display(nativeHandle: raw.display, ownsHandle: false))
+    case NATIVE_DISPLAY_EVENT_TYPE_REMOVED: self = .removed(display: Display(nativeHandle: raw.display, ownsHandle: false))
+    case NATIVE_DISPLAY_EVENT_TYPE_CHANGED: self = .changed(display: Display(nativeHandle: raw.display, ownsHandle: false), oldDisplay: Display(nativeHandle: raw.data.changed.old_display, ownsHandle: false), newDisplay: Display(nativeHandle: raw.data.changed.new_display, ownsHandle: false))
+    default: return nil
     }
-
-    /// Human-readable name of this display
-    public var name: String {
-        guard let namePtr = native_display_get_name(nativeHandle) else {
-            return ""
-        }
-        let name = String(cString: namePtr)
-        free_c_str(namePtr)
-        return name
-    }
-
-    /// Position of this display in the virtual desktop
-    public var position: Point {
-        let nativePoint = native_display_get_position(nativeHandle)
-        return Point(x: nativePoint.x, y: nativePoint.y)
-    }
-
-    /// Physical size of this display in pixels
-    public var size: Size {
-        let nativeSize = native_display_get_size(nativeHandle)
-        return Size(width: nativeSize.width, height: nativeSize.height)
-    }
-
-    /// Work area of this display (excluding taskbar/dock)
-    public var workArea: Rect {
-        let nativeRect = native_display_get_work_area(nativeHandle)
-        return Rect(x: nativeRect.x, y: nativeRect.y, width: nativeRect.width, height: nativeRect.height)
-    }
-
-    /// Scale factor of this display
-    public var scaleFactor: Double {
-        return native_display_get_scale_factor(nativeHandle)
-    }
-
-    /// Whether this is the primary display
-    public var isPrimary: Bool {
-        return native_display_is_primary(nativeHandle)
-    }
-
-    /// Orientation of this display
-    public var orientation: DisplayOrientation {
-        let nativeOrientation = native_display_get_orientation(nativeHandle)
-        return DisplayOrientation(value: Int(nativeOrientation.rawValue))
-    }
-
-    /// Refresh rate of this display in Hz
-    public var refreshRate: Int {
-        return Int(native_display_get_refresh_rate(nativeHandle))
-    }
-
-    /// Bit depth of this display
-    public var bitDepth: Int {
-        return Int(native_display_get_bit_depth(nativeHandle))
-    }
-
-    /// Native platform-specific object handle
-    public var nativeObject: UnsafeMutableRawPointer? {
-        return native_display_get_native_object(nativeHandle)
-    }
+  }
 }
+
+/// Owned handle to a native `Display`.
+public final class Display {
+  public let nativeHandle: native_display_t
+  private let ownsHandle: Bool
+
+  public init(nativeHandle: native_display_t, ownsHandle: Bool = true) {
+    self.nativeHandle = nativeHandle
+    self.ownsHandle = ownsHandle
+  }
+
+  deinit {
+    if ownsHandle {
+      native_display_free(nativeHandle)
+    }
+  }
+
+  /// Creates a new `Display`; returns nil if the native side failed.
+  public static func create() -> Display? {
+    let handle = native_display_create()
+    guard handle != NATIVE_INVALID_DISPLAY else { return nil }
+    return Display(nativeHandle: handle)
+  }
+
+  /// Creates a new `Display`; returns nil if the native side failed.
+  public static func createWithDisplay(display: UnsafeMutableRawPointer?) -> Display? {
+    let handle = native_display_create_with_display(display)
+    guard handle != NATIVE_INVALID_DISPLAY else { return nil }
+    return Display(nativeHandle: handle)
+  }
+
+  public var id: String? {
+    guard let value = native_display_get_id(nativeHandle) else { return nil }
+    defer { free_c_str(value) }
+    return String(cString: value)
+  }
+
+  public var name: String? {
+    guard let value = native_display_get_name(nativeHandle) else { return nil }
+    defer { free_c_str(value) }
+    return String(cString: value)
+  }
+
+  public var position: Point {
+    return Point(raw: native_display_get_position(nativeHandle))
+  }
+
+  public var size: Size {
+    return Size(raw: native_display_get_size(nativeHandle))
+  }
+
+  public var workArea: Rectangle {
+    return Rectangle(raw: native_display_get_work_area(nativeHandle))
+  }
+
+  public var scaleFactor: Double {
+    return native_display_get_scale_factor(nativeHandle)
+  }
+
+  public var isPrimary: Bool {
+    return native_display_is_primary(nativeHandle)
+  }
+
+  public var orientation: DisplayOrientation {
+    return DisplayOrientation(raw: native_display_get_orientation(nativeHandle))
+  }
+
+  public var refreshRate: CInt {
+    return native_display_get_refresh_rate(nativeHandle)
+  }
+
+  public var bitDepth: CInt {
+    return native_display_get_bit_depth(nativeHandle)
+  }
+
+  /// Platform-specific native object behind this handle.
+  public var nativeObject: UnsafeMutableRawPointer? {
+    native_display_get_native_object(nativeHandle)
+  }
+
+}
+

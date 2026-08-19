@@ -11,13 +11,13 @@ import Foundation
 import NativeAPI
 
 // --- 1. Platform support ---
-guard ShortcutManager.isSupported() else {
+guard ShortcutManager.shared.isSupported() else {
   print("Global shortcuts are not supported on this platform.")
   exit(0)
 }
 
 // --- 2. Events ---
-let listener = ShortcutManager.addListener { event in
+let listener = ShortcutManager.shared.addListener { event in
   switch event {
   case .activated(let id, let accelerator):
     print("[shortcut] \(id) activated (\(accelerator ?? "?"))")
@@ -30,8 +30,8 @@ let listener = ShortcutManager.addListener { event in
 
 // --- 3. Validation, before trying to register ---
 for candidate in ["Ctrl+Shift+A", "NotAKey"] {
-  let valid = ShortcutManager.isValidAccelerator(accelerator: candidate)
-  let available = ShortcutManager.isAvailable(accelerator: candidate)
+  let valid = ShortcutManager.shared.isValidAccelerator(accelerator: candidate)
+  let available = ShortcutManager.shared.isAvailable(accelerator: candidate)
   print("\(candidate): valid=\(valid) available=\(available)")
 }
 
@@ -40,7 +40,7 @@ final class Counter {
   var hits = 0
 }
 let counter = Counter()
-let first = ShortcutManager.registerWithAcceleratorAndCallback(accelerator: "Ctrl+Shift+A") {
+let first = ShortcutManager.shared.registerWithAcceleratorAndCallback(accelerator: "Ctrl+Shift+A") {
   counter.hits += 1
   print("Ctrl+Shift+A fired \(counter.hits) time(s)")
 }
@@ -58,7 +58,7 @@ let options = ShortcutOptions(
   scope: .global,
   enabled: true
 )
-let second = ShortcutManager.registerWithOptions(options: options)
+let second = ShortcutManager.shared.registerWithOptions(options: options)
 if let shortcut = second {
   print("Registered #\(shortcut.id) scope=\(shortcut.scope) description=\(shortcut.description ?? "?")")
 
@@ -75,17 +75,17 @@ if let shortcut = second {
 }
 
 // --- 6. Enumerate ---
-print("All shortcuts: \(ShortcutManager.getAll().count)")
-print("Global scope:  \(ShortcutManager.getByScope(scope: .global).count)")
-if let found = ShortcutManager.getWithAccelerator(accelerator: "Ctrl+Shift+A") {
+print("All shortcuts: \(ShortcutManager.shared.getAll().count)")
+print("Global scope:  \(ShortcutManager.shared.getByScope(scope: .global).count)")
+if let found = ShortcutManager.shared.getWithAccelerator(accelerator: "Ctrl+Shift+A") {
   print("Lookup by accelerator -> #\(found.id)")
 }
 print("Activations so far: \(counter.hits)")
 
 // --- 7. Clean up ---
 if let shortcut = first {
-  _ = ShortcutManager.unregisterWithId(id: shortcut.id)
+  _ = ShortcutManager.shared.unregisterWithId(id: shortcut.id)
 }
-_ = ShortcutManager.unregisterWithAccelerator(accelerator: "Ctrl+Shift+B")
-print("Unregistered \(ShortcutManager.unregisterAll()) remaining shortcut(s)")
-_ = ShortcutManager.removeListener(listener)
+_ = ShortcutManager.shared.unregisterWithAccelerator(accelerator: "Ctrl+Shift+B")
+print("Unregistered \(ShortcutManager.shared.unregisterAll()) remaining shortcut(s)")
+_ = ShortcutManager.shared.removeListener(listener)

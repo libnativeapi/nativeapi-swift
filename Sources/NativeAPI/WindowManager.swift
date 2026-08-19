@@ -4,14 +4,19 @@
 import CNativeAPI
 import Foundation
 
-public enum WindowManager {
-  public static func get(id: WindowId) -> Window? {
+public final class WindowManager: Sendable {
+  /// The shared instance backed by the native singleton.
+  public static let shared = WindowManager()
+
+  private init() {}
+
+  public func get(id: WindowId) -> Window? {
     let handle = native_window_manager_get(id)
     guard handle != NATIVE_INVALID_WINDOW else { return nil }
     return Window(nativeHandle: handle)
   }
 
-  public static func getAll() -> [Window] {
+  public func getAll() -> [Window] {
     var list = native_window_manager_get_all()
     var items: [Window] = []
     if let buffer = list.windows {
@@ -24,13 +29,13 @@ public enum WindowManager {
     return items
   }
 
-  public static func getCurrent() -> Window? {
+  public func getCurrent() -> Window? {
     let handle = native_window_manager_get_current()
     guard handle != NATIVE_INVALID_WINDOW else { return nil }
     return Window(nativeHandle: handle)
   }
 
-  public static func setWillShowHook(hook: ((UInt32) -> Void)?) -> Void {
+  public func setWillShowHook(hook: ((UInt32) -> Void)?) -> Void {
     let hookContext = hook.map { Unmanaged.passRetained(CallbackBox1<UInt32>($0)).toOpaque() }
     let hookTrampoline = { (arg0: UInt32, userData: UnsafeMutableRawPointer?) -> Void in
       guard let userData else { return }
@@ -39,7 +44,7 @@ public enum WindowManager {
     native_window_manager_set_will_show_hook(hookContext != nil ? hookTrampoline : nil, hookContext)
   }
 
-  public static func setWillHideHook(hook: ((UInt32) -> Void)?) -> Void {
+  public func setWillHideHook(hook: ((UInt32) -> Void)?) -> Void {
     let hookContext = hook.map { Unmanaged.passRetained(CallbackBox1<UInt32>($0)).toOpaque() }
     let hookTrampoline = { (arg0: UInt32, userData: UnsafeMutableRawPointer?) -> Void in
       guard let userData else { return }
@@ -48,27 +53,27 @@ public enum WindowManager {
     native_window_manager_set_will_hide_hook(hookContext != nil ? hookTrampoline : nil, hookContext)
   }
 
-  public static func hasWillShowHook() -> Bool {
+  public func hasWillShowHook() -> Bool {
     return native_window_manager_has_will_show_hook()
   }
 
-  public static func hasWillHideHook() -> Bool {
+  public func hasWillHideHook() -> Bool {
     return native_window_manager_has_will_hide_hook()
   }
 
-  public static func handleWillShow(id: WindowId) -> Void {
+  public func handleWillShow(id: WindowId) -> Void {
     native_window_manager_handle_will_show(id)
   }
 
-  public static func handleWillHide(id: WindowId) -> Void {
+  public func handleWillHide(id: WindowId) -> Void {
     native_window_manager_handle_will_hide(id)
   }
 
-  public static func callOriginalShow(id: WindowId) -> Bool {
+  public func callOriginalShow(id: WindowId) -> Bool {
     return native_window_manager_call_original_show(id)
   }
 
-  public static func callOriginalHide(id: WindowId) -> Bool {
+  public func callOriginalHide(id: WindowId) -> Bool {
     return native_window_manager_call_original_hide(id)
   }
 
@@ -77,7 +82,7 @@ public enum WindowManager {
   /// The closure is retained for good: the C ABI keeps the context
   /// pointer but offers no hook to release it, so removing the listener
   /// stops the calls without freeing the closure.
-  public static func addListener(_ callback: @escaping (WindowEvent) -> Void) -> ListenerId {
+  public func addListener(_ callback: @escaping (WindowEvent) -> Void) -> ListenerId {
     let context = Unmanaged.passRetained(CallbackBox1<WindowEvent>(callback)).toOpaque()
     let trampoline: @convention(c) (UnsafePointer<native_window_event_t>?, UnsafeMutableRawPointer?) -> Void = { event, userData in
       guard let event, let userData, let value = WindowEvent(raw: event.pointee) else { return }
@@ -87,7 +92,7 @@ public enum WindowManager {
   }
 
   /// Unregisters a listener. Returns false if unknown.
-  public static func removeListener(_ listenerId: ListenerId) -> Bool {
+  public func removeListener(_ listenerId: ListenerId) -> Bool {
     native_window_manager_remove_listener(listenerId)
   }
 

@@ -8,7 +8,7 @@ import Foundation
 import NativeAPI
 
 // --- 1. Events ---
-let listener = DisplayManager.addListener { event in
+let listener = DisplayManager.shared.addListener { event in
   switch event {
   case .added(let display):
     print("[display] added: \(display.name ?? "(unnamed)")")
@@ -20,7 +20,7 @@ let listener = DisplayManager.addListener { event in
 }
 
 // --- 2. All displays ---
-let displays = DisplayManager.getAll()
+let displays = DisplayManager.shared.getAll()
 print("Found \(displays.count) display(s):")
 for (index, display) in displays.enumerated() {
   print("\nDisplay \(index + 1):")
@@ -28,17 +28,17 @@ for (index, display) in displays.enumerated() {
 }
 
 // --- 3. Primary ---
-if let primary = DisplayManager.getPrimary() {
+if let primary = DisplayManager.shared.getPrimary() {
   print("\nPrimary display: \(primary.name ?? "(unnamed)")")
 } else {
   print("\nNo primary display available.")
 }
 
 // --- 4. Cursor ---
-let cursor = DisplayManager.getCursorPosition()
+let cursor = DisplayManager.shared.getCursorPosition()
 print("Cursor at (\(cursor.x), \(cursor.y))")
 
-_ = DisplayManager.removeListener(listener)
+_ = DisplayManager.shared.removeListener(listener)
 
 func describe(_ display: Display) {
   print("  Name:         \(display.name ?? "(unnamed)")")

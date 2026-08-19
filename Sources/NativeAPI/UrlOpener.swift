@@ -60,18 +60,23 @@ extension UrlOpenResult {
   }
 }
 
-public enum UrlOpener {
-  public static func isSupported() -> Bool {
+public final class UrlOpener: Sendable {
+  /// The shared instance backed by the native singleton.
+  public static let shared = UrlOpener()
+
+  private init() {}
+
+  public func isSupported() -> Bool {
     return native_url_opener_is_supported()
   }
 
-  public static func canOpen(url: String) -> Bool {
+  public func canOpen(url: String) -> Bool {
     let urlCString = strdup(url)
     defer { free(urlCString) }
     return native_url_opener_can_open(urlCString)
   }
 
-  public static func open(url: String) -> UrlOpenResult {
+  public func open(url: String) -> UrlOpenResult {
     let urlCString = strdup(url)
     defer { free(urlCString) }
     var raw = native_url_opener_open(urlCString)

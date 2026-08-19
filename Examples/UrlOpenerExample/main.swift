@@ -8,7 +8,7 @@ import Foundation
 import NativeAPI
 
 // --- 1. Check support ---
-let supported = UrlOpener.isSupported()
+let supported = UrlOpener.shared.isSupported()
 print("URL opening supported: \(supported)")
 guard supported else {
   FileHandle.standardError.write("URL opening is not supported on this platform.\n".data(using: .utf8)!)
@@ -19,11 +19,11 @@ guard supported else {
 let url = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "https://www.swift.org"
 
 // --- 3. Can it be opened? ---
-print("canOpen(\(url)) = \(UrlOpener.canOpen(url: url))")
+print("canOpen(\(url)) = \(UrlOpener.shared.canOpen(url: url))")
 
 // --- 4. Open it ---
 print("Opening \(url) ...")
-let result = UrlOpener.open(url: url)
+let result = UrlOpener.shared.open(url: url)
 if result.success {
   print("URL opened successfully.")
 } else {

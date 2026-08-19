@@ -24,52 +24,57 @@ public enum ApplicationEvent {
   }
 }
 
-public enum Application {
-  public static func run() -> CInt {
+public final class Application: Sendable {
+  /// The shared instance backed by the native singleton.
+  public static let shared = Application()
+
+  private init() {}
+
+  public func run() -> CInt {
     return native_application_run()
   }
 
-  public static func runWithWindow(window: Window) -> CInt {
-    return native_application_run_with_window(window.nativeHandle)
+  public func runWithWindow(window: Window?) -> CInt {
+    return native_application_run_with_window(window?.nativeHandle ?? 0)
   }
 
-  public static func quit(exitCode: CInt) -> Void {
+  public func quit(exitCode: CInt) -> Void {
     native_application_quit(exitCode)
   }
 
-  public static func isRunning() -> Bool {
+  public func isRunning() -> Bool {
     return native_application_is_running()
   }
 
-  public static func isSingleInstance() -> Bool {
+  public func isSingleInstance() -> Bool {
     return native_application_is_single_instance()
   }
 
-  public static func setIcon(iconPath: String) -> Bool {
+  public func setIcon(iconPath: String) -> Bool {
     let iconPathCString = strdup(iconPath)
     defer { free(iconPathCString) }
     return native_application_set_icon(iconPathCString)
   }
 
-  public static func setDockIconVisible(visible: Bool) -> Bool {
+  public func setDockIconVisible(visible: Bool) -> Bool {
     return native_application_set_dock_icon_visible(visible)
   }
 
-  public static func setMenuBar(menu: Menu) -> Bool {
-    return native_application_set_menu_bar(menu.nativeHandle)
+  public func setMenuBar(menu: Menu?) -> Bool {
+    return native_application_set_menu_bar(menu?.nativeHandle ?? 0)
   }
 
-  public static func getPrimaryWindow() -> Window? {
+  public func getPrimaryWindow() -> Window? {
     let handle = native_application_get_primary_window()
     guard handle != NATIVE_INVALID_WINDOW else { return nil }
     return Window(nativeHandle: handle)
   }
 
-  public static func setPrimaryWindow(window: Window) -> Void {
-    native_application_set_primary_window(window.nativeHandle)
+  public func setPrimaryWindow(window: Window?) -> Void {
+    native_application_set_primary_window(window?.nativeHandle ?? 0)
   }
 
-  public static func getAllWindows() -> [Window] {
+  public func getAllWindows() -> [Window] {
     var list = native_application_get_all_windows()
     var items: [Window] = []
     if let buffer = list.windows {
@@ -87,7 +92,7 @@ public enum Application {
   /// The closure is retained for good: the C ABI keeps the context
   /// pointer but offers no hook to release it, so removing the listener
   /// stops the calls without freeing the closure.
-  public static func addListener(_ callback: @escaping (ApplicationEvent) -> Void) -> ListenerId {
+  public func addListener(_ callback: @escaping (ApplicationEvent) -> Void) -> ListenerId {
     let context = Unmanaged.passRetained(CallbackBox1<ApplicationEvent>(callback)).toOpaque()
     let trampoline: @convention(c) (UnsafePointer<native_application_event_t>?, UnsafeMutableRawPointer?) -> Void = { event, userData in
       guard let event, let userData, let value = ApplicationEvent(raw: event.pointee) else { return }
@@ -97,7 +102,7 @@ public enum Application {
   }
 
   /// Unregisters a listener. Returns false if unknown.
-  public static func removeListener(_ listenerId: ListenerId) -> Bool {
+  public func removeListener(_ listenerId: ListenerId) -> Bool {
     native_application_remove_listener(listenerId)
   }
 

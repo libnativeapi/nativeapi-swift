@@ -4,12 +4,17 @@
 import CNativeAPI
 import Foundation
 
-public enum ShortcutManager {
-  public static func isSupported() -> Bool {
+public final class ShortcutManager: Sendable {
+  /// The shared instance backed by the native singleton.
+  public static let shared = ShortcutManager()
+
+  private init() {}
+
+  public func isSupported() -> Bool {
     return native_shortcut_manager_is_supported()
   }
 
-  public static func registerWithAcceleratorAndCallback(accelerator: String, callback: @escaping () -> Void) -> Shortcut? {
+  public func registerWithAcceleratorAndCallback(accelerator: String, callback: @escaping () -> Void) -> Shortcut? {
     let acceleratorCString = strdup(accelerator)
     defer { free(acceleratorCString) }
     let callbackContext = Unmanaged.passRetained(CallbackBox0(callback)).toOpaque()
@@ -22,7 +27,7 @@ public enum ShortcutManager {
     return Shortcut(nativeHandle: handle)
   }
 
-  public static func registerWithOptions(options: ShortcutOptions) -> Shortcut? {
+  public func registerWithOptions(options: ShortcutOptions) -> Shortcut? {
     var optionsRaw = options.toRaw()
     defer { ShortcutOptions.releaseRaw(&optionsRaw) }
     let handle = native_shortcut_manager_register_with_options(optionsRaw)
@@ -30,27 +35,27 @@ public enum ShortcutManager {
     return Shortcut(nativeHandle: handle)
   }
 
-  public static func unregisterWithId(id: ShortcutId) -> Bool {
+  public func unregisterWithId(id: ShortcutId) -> Bool {
     return native_shortcut_manager_unregister_with_id(id)
   }
 
-  public static func unregisterWithAccelerator(accelerator: String) -> Bool {
+  public func unregisterWithAccelerator(accelerator: String) -> Bool {
     let acceleratorCString = strdup(accelerator)
     defer { free(acceleratorCString) }
     return native_shortcut_manager_unregister_with_accelerator(acceleratorCString)
   }
 
-  public static func unregisterAll() -> CInt {
+  public func unregisterAll() -> CInt {
     return native_shortcut_manager_unregister_all()
   }
 
-  public static func getWithId(id: ShortcutId) -> Shortcut? {
+  public func getWithId(id: ShortcutId) -> Shortcut? {
     let handle = native_shortcut_manager_get_with_id(id)
     guard handle != NATIVE_INVALID_SHORTCUT else { return nil }
     return Shortcut(nativeHandle: handle)
   }
 
-  public static func getWithAccelerator(accelerator: String) -> Shortcut? {
+  public func getWithAccelerator(accelerator: String) -> Shortcut? {
     let acceleratorCString = strdup(accelerator)
     defer { free(acceleratorCString) }
     let handle = native_shortcut_manager_get_with_accelerator(acceleratorCString)
@@ -58,7 +63,7 @@ public enum ShortcutManager {
     return Shortcut(nativeHandle: handle)
   }
 
-  public static func getAll() -> [Shortcut] {
+  public func getAll() -> [Shortcut] {
     var list = native_shortcut_manager_get_all()
     var items: [Shortcut] = []
     if let buffer = list.shortcuts {
@@ -71,7 +76,7 @@ public enum ShortcutManager {
     return items
   }
 
-  public static func getByScope(scope: ShortcutScope) -> [Shortcut] {
+  public func getByScope(scope: ShortcutScope) -> [Shortcut] {
     var list = native_shortcut_manager_get_by_scope(scope.raw)
     var items: [Shortcut] = []
     if let buffer = list.shortcuts {
@@ -84,27 +89,27 @@ public enum ShortcutManager {
     return items
   }
 
-  public static func isAvailable(accelerator: String) -> Bool {
+  public func isAvailable(accelerator: String) -> Bool {
     let acceleratorCString = strdup(accelerator)
     defer { free(acceleratorCString) }
     return native_shortcut_manager_is_available(acceleratorCString)
   }
 
-  public static func isValidAccelerator(accelerator: String) -> Bool {
+  public func isValidAccelerator(accelerator: String) -> Bool {
     let acceleratorCString = strdup(accelerator)
     defer { free(acceleratorCString) }
     return native_shortcut_manager_is_valid_accelerator(acceleratorCString)
   }
 
-  public static func setEnabled(enabled: Bool) -> Void {
+  public func setEnabled(enabled: Bool) -> Void {
     native_shortcut_manager_set_enabled(enabled)
   }
 
-  public static func isEnabled() -> Bool {
+  public func isEnabled() -> Bool {
     return native_shortcut_manager_is_enabled()
   }
 
-  public static func emitShortcutActivated(id: ShortcutId, accelerator: String) -> Void {
+  public func emitShortcutActivated(id: ShortcutId, accelerator: String) -> Void {
     let acceleratorCString = strdup(accelerator)
     defer { free(acceleratorCString) }
     native_shortcut_manager_emit_shortcut_activated(id, acceleratorCString)
@@ -115,7 +120,7 @@ public enum ShortcutManager {
   /// The closure is retained for good: the C ABI keeps the context
   /// pointer but offers no hook to release it, so removing the listener
   /// stops the calls without freeing the closure.
-  public static func addListener(_ callback: @escaping (ShortcutEvent) -> Void) -> ListenerId {
+  public func addListener(_ callback: @escaping (ShortcutEvent) -> Void) -> ListenerId {
     let context = Unmanaged.passRetained(CallbackBox1<ShortcutEvent>(callback)).toOpaque()
     let trampoline: @convention(c) (UnsafePointer<native_shortcut_event_t>?, UnsafeMutableRawPointer?) -> Void = { event, userData in
       guard let event, let userData, let value = ShortcutEvent(raw: event.pointee) else { return }
@@ -125,7 +130,7 @@ public enum ShortcutManager {
   }
 
   /// Unregisters a listener. Returns false if unknown.
-  public static func removeListener(_ listenerId: ListenerId) -> Bool {
+  public func removeListener(_ listenerId: ListenerId) -> Bool {
     native_shortcut_manager_remove_listener(listenerId)
   }
 

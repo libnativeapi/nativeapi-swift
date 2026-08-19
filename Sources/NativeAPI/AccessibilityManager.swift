@@ -4,12 +4,17 @@
 import CNativeAPI
 import Foundation
 
-public enum AccessibilityManager {
-  public static func enable() -> Void {
+public final class AccessibilityManager: Sendable {
+  /// The shared instance backed by the native singleton.
+  public static let shared = AccessibilityManager()
+
+  private init() {}
+
+  public func enable() -> Void {
     native_accessibility_manager_enable()
   }
 
-  public static func isEnabled() -> Bool {
+  public func isEnabled() -> Bool {
     return native_accessibility_manager_is_enabled()
   }
 

@@ -10,7 +10,7 @@
 import Foundation
 import NativeAPI
 
-let enabled = AccessibilityManager.isEnabled()
+let enabled = AccessibilityManager.shared.isEnabled()
 print("Accessibility enabled: \(enabled)")
 
 if enabled {
@@ -19,8 +19,8 @@ if enabled {
 }
 
 print("Requesting accessibility permission...")
-AccessibilityManager.enable()
-print("After the request: \(AccessibilityManager.isEnabled())")
+AccessibilityManager.shared.enable()
+print("After the request: \(AccessibilityManager.shared.isEnabled())")
 print(
   "Grant the permission in System Settings > Privacy & Security > Accessibility, "
     + "then run this again.")

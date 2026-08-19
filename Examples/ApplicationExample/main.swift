@@ -14,7 +14,7 @@ import NativeAPI
 let dryRun = CommandLine.arguments.contains("--dry-run")
 
 // --- 1. Lifecycle events ---
-let listener = Application.addListener { event in
+let listener = Application.shared.addListener { event in
   switch event {
   case .started: print("[app] started")
   case .exiting(let exitCode): print("[app] exiting (\(exitCode))")
@@ -22,11 +22,11 @@ let listener = Application.addListener { event in
   case .deactivated: print("[app] deactivated")
   case .quitRequested:
     print("[app] quit requested")
-    Application.quit(exitCode: 0)
+    Application.shared.quit(exitCode: 0)
   }
 }
 
-print("Single instance: \(Application.isSingleInstance())")
+print("Single instance: \(Application.shared.isSingleInstance())")
 
 // --- 2. Menu bar ---
 if let menuBar = Menu.create() {
@@ -35,10 +35,10 @@ if let menuBar = Menu.create() {
   }
   menuBar.addSeparator()
   if let quit = MenuItem.createWithLabelAndType(label: "Quit", type: .normal) {
-    _ = quit.addListener { _ in Application.quit(exitCode: 0) }
+    _ = quit.addListener { _ in Application.shared.quit(exitCode: 0) }
     menuBar.addItem(item: quit)
   }
-  print("Menu bar installed: \(Application.setMenuBar(menu: menuBar))")
+  print("Menu bar installed: \(Application.shared.setMenuBar(menu: menuBar))")
 }
 
 // --- 3. Primary window ---
@@ -49,23 +49,23 @@ window.setTitle(title: "Swift Application Example")
 window.setSize(size: Size(width: 640, height: 480), animate: false)
 window.center()
 
-Application.setPrimaryWindow(window: window)
-if let primary = Application.getPrimaryWindow() {
+Application.shared.setPrimaryWindow(window: window)
+if let primary = Application.shared.getPrimaryWindow() {
   print("Primary window: #\(primary.id)")
 }
-print("Known windows: \(Application.getAllWindows().count)")
+print("Known windows: \(Application.shared.getAllWindows().count)")
 
 // --- 4. Run ---
 if dryRun {
   print("--dry-run: skipping the event loop.")
-  print("isRunning = \(Application.isRunning())")
-  _ = Application.removeListener(listener)
+  print("isRunning = \(Application.shared.isRunning())")
+  _ = Application.shared.removeListener(listener)
   exit(0)
 }
 
 window.show()
 print("Running. Close the window or press Ctrl+C to quit.")
-let exitCode = Application.runWithWindow(window: window)
+let exitCode = Application.shared.runWithWindow(window: window)
 print("Exited with \(exitCode)")
-_ = Application.removeListener(listener)
+_ = Application.shared.removeListener(listener)
 exit(exitCode)

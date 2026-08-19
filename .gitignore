@@ -2,3 +2,4 @@
 .swiftpm/
 .vscode/
 .swift-version
+.DS_Store

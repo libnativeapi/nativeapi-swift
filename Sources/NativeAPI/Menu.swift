@@ -122,8 +122,8 @@ public final class MenuItem {
     return String(cString: value)
   }
 
-  public func setIcon(image: Image) -> Void {
-    native_menu_item_set_icon(nativeHandle, image.nativeHandle)
+  public func setIcon(image: Image?) -> Void {
+    native_menu_item_set_icon(nativeHandle, image?.nativeHandle ?? 0)
   }
 
   public var icon: Image? {
@@ -188,8 +188,8 @@ public final class MenuItem {
     return native_menu_item_get_radio_group(nativeHandle)
   }
 
-  public func setSubmenu(submenu: Menu) -> Void {
-    native_menu_item_set_submenu(nativeHandle, submenu.nativeHandle)
+  public func setSubmenu(submenu: Menu?) -> Void {
+    native_menu_item_set_submenu(nativeHandle, submenu?.nativeHandle ?? 0)
   }
 
   public var submenu: Menu? {
@@ -258,16 +258,16 @@ public final class Menu {
     return native_menu_get_id(nativeHandle)
   }
 
-  public func addItem(item: MenuItem) -> Void {
-    native_menu_add_item(nativeHandle, item.nativeHandle)
+  public func addItem(item: MenuItem?) -> Void {
+    native_menu_add_item(nativeHandle, item?.nativeHandle ?? 0)
   }
 
-  public func insertItem(index: CUnsignedLong, item: MenuItem) -> Void {
-    native_menu_insert_item(nativeHandle, index, item.nativeHandle)
+  public func insertItem(index: CUnsignedLong, item: MenuItem?) -> Void {
+    native_menu_insert_item(nativeHandle, index, item?.nativeHandle ?? 0)
   }
 
-  public func removeItem(item: MenuItem) -> Bool {
-    return native_menu_remove_item(nativeHandle, item.nativeHandle)
+  public func removeItem(item: MenuItem?) -> Bool {
+    return native_menu_remove_item(nativeHandle, item?.nativeHandle ?? 0)
   }
 
   public func removeItemById(itemId: MenuItemId) -> Bool {

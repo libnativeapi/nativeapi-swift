@@ -4,8 +4,13 @@
 import CNativeAPI
 import Foundation
 
-public enum DisplayManager {
-  public static func getAll() -> [Display] {
+public final class DisplayManager: Sendable {
+  /// The shared instance backed by the native singleton.
+  public static let shared = DisplayManager()
+
+  private init() {}
+
+  public func getAll() -> [Display] {
     var list = native_display_manager_get_all()
     var items: [Display] = []
     if let buffer = list.displays {
@@ -18,13 +23,13 @@ public enum DisplayManager {
     return items
   }
 
-  public static func getPrimary() -> Display? {
+  public func getPrimary() -> Display? {
     let handle = native_display_manager_get_primary()
     guard handle != NATIVE_INVALID_DISPLAY else { return nil }
     return Display(nativeHandle: handle)
   }
 
-  public static func getCursorPosition() -> Point {
+  public func getCursorPosition() -> Point {
     return Point(raw: native_display_manager_get_cursor_position())
   }
 
@@ -33,7 +38,7 @@ public enum DisplayManager {
   /// The closure is retained for good: the C ABI keeps the context
   /// pointer but offers no hook to release it, so removing the listener
   /// stops the calls without freeing the closure.
-  public static func addListener(_ callback: @escaping (DisplayEvent) -> Void) -> ListenerId {
+  public func addListener(_ callback: @escaping (DisplayEvent) -> Void) -> ListenerId {
     let context = Unmanaged.passRetained(CallbackBox1<DisplayEvent>(callback)).toOpaque()
     let trampoline: @convention(c) (UnsafePointer<native_display_event_t>?, UnsafeMutableRawPointer?) -> Void = { event, userData in
       guard let event, let userData, let value = DisplayEvent(raw: event.pointee) else { return }
@@ -43,7 +48,7 @@ public enum DisplayManager {
   }
 
   /// Unregisters a listener. Returns false if unknown.
-  public static func removeListener(_ listenerId: ListenerId) -> Bool {
+  public func removeListener(_ listenerId: ListenerId) -> Bool {
     native_display_manager_remove_listener(listenerId)
   }
 

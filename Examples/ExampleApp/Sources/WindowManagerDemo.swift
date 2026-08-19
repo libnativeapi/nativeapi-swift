@@ -34,7 +34,7 @@ final class WindowManagerDemoState: State<WindowManagerDemo> {
         super.initState()
 
         // Register for window events
-        eventCallbackId = WindowManager.shared.registerEventCallback { [weak self] event in
+        eventCallbackId = WindowManager.shared.shared.registerEventCallback { [weak self] event in
             guard let self = self else { return }
             self.handleWindowEvent(event)
         }
@@ -52,7 +52,7 @@ final class WindowManagerDemoState: State<WindowManagerDemo> {
 
     override func dispose() {
         if let callbackId = eventCallbackId {
-            WindowManager.shared.unregisterEventCallback(callbackId)
+            WindowManager.shared.shared.unregisterEventCallback(callbackId)
         }
         updateTimer?.invalidate()
         super.dispose()
@@ -87,7 +87,7 @@ final class WindowManagerDemoState: State<WindowManagerDemo> {
     }
 
     private func updateWindows() {
-        let windowList = WindowManager.shared.getAll()
+        let windowList = WindowManager.shared.shared.getAll()
         state.windows = windowList.windows
         state.lastUpdate = Date()
     }

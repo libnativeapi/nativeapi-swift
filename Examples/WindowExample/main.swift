@@ -18,7 +18,7 @@ print("Created window #\(window.id)")
 
 // --- 2. Events ---
 // One listener receives every window event; the payload says which.
-let listener = WindowManager.addListener { event in
+let listener = WindowManager.shared.addListener { event in
   switch event {
   case .focused(let windowId): print("[event] window \(windowId) focused")
   case .blurred(let windowId): print("[event] window \(windowId) blurred")
@@ -70,21 +70,21 @@ print(
     + "fullScreen=\(window.isFullScreen)")
 
 // --- 7. The manager's view of things ---
-print("WindowManager tracks \(WindowManager.getAll().count) window(s)")
-if let current = WindowManager.getCurrent() {
+print("WindowManager tracks \(WindowManager.shared.getAll().count) window(s)")
+if let current = WindowManager.shared.getCurrent() {
   print("Current window: #\(current.id)")
 }
-if let same = WindowManager.get(id: window.id) {
+if let same = WindowManager.shared.get(id: window.id) {
   print("Looked up window #\(same.id) by id")
 }
 
 // Hooks run before the native show/hide, which is where a UI framework would
 // slot its own bookkeeping.
-WindowManager.setWillShowHook { id in
+WindowManager.shared.setWillShowHook { id in
   print("[hook] window \(id) is about to be shown")
 }
-print("hasWillShowHook = \(WindowManager.hasWillShowHook())")
-WindowManager.setWillShowHook(hook: nil)
+print("hasWillShowHook = \(WindowManager.shared.hasWillShowHook())")
+WindowManager.shared.setWillShowHook(hook: nil)
 
 // --- 8. Clean up ---
-_ = WindowManager.removeListener(listener)
+_ = WindowManager.shared.removeListener(listener)

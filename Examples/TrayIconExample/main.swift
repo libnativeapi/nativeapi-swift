@@ -12,7 +12,7 @@ let pixelPNG = "data:image/png;base64,"
   + "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 
 // --- 1. Platform support ---
-guard TrayManager.isSupported() else {
+guard TrayManager.shared.isSupported() else {
   print("System tray is not supported on this platform.")
   exit(0)
 }
@@ -71,8 +71,8 @@ let bounds = tray.getBounds()
 print("Bounds: (\(bounds.x), \(bounds.y)) \(bounds.width)x\(bounds.height)")
 
 // --- 6. The manager's view ---
-print("TrayManager tracks \(TrayManager.getAll().count) icon(s)")
-if let same = TrayManager.get(id: tray.getId()) {
+print("TrayManager tracks \(TrayManager.shared.getAll().count) icon(s)")
+if let same = TrayManager.shared.get(id: tray.getId()) {
   print("Looked up tray icon #\(same.getId()) by id")
 }
 

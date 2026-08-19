@@ -40,9 +40,9 @@ final class DisplayManagerDemoState: State<DisplayManagerDemo> {
     }
 
     private func updateDisplayInfo() {
-        state.displays = DisplayManager.getAll()
-        state.cursorPosition = DisplayManager.getCursorPosition()
-        state.currentWindow = WindowManager.shared.getCurrent()
+        state.displays = DisplayManager.shared.getAll()
+        state.cursorPosition = DisplayManager.shared.getCursorPosition()
+        state.currentWindow = WindowManager.shared.shared.getCurrent()
         state.lastUpdate = Date()
     }
 

@@ -77,8 +77,8 @@ public final class TrayIcon {
     return native_tray_icon_get_id(nativeHandle)
   }
 
-  public func setIcon(image: Image) -> Void {
-    native_tray_icon_set_icon(nativeHandle, image.nativeHandle)
+  public func setIcon(image: Image?) -> Void {
+    native_tray_icon_set_icon(nativeHandle, image?.nativeHandle ?? 0)
   }
 
   public var icon: Image? {
@@ -111,8 +111,8 @@ public final class TrayIcon {
     return String(cString: value)
   }
 
-  public func setContextMenu(menu: Menu) -> Void {
-    native_tray_icon_set_context_menu(nativeHandle, menu.nativeHandle)
+  public func setContextMenu(menu: Menu?) -> Void {
+    native_tray_icon_set_context_menu(nativeHandle, menu?.nativeHandle ?? 0)
   }
 
   public func getContextMenu() -> Menu? {
